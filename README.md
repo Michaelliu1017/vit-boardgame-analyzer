@@ -3,6 +3,7 @@ A board game decision support platform that combines simulation, machine learnin
 <p align="center">
   <img src="assets/gitowl.png" width="100">
 </p>
+
 ## Prerequisites
 
 - Python 3.11 or 3.12
