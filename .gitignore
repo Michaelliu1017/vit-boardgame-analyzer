@@ -1,2 +1,13 @@
+# Mac
 .DS_Store
+**/.DS_Store
+
+# Python
+app/backend/venv/
+app/backend/__pycache__/
+**/__pycache__/
+*.pyc
+
+# Node
+app/frontend/node_modules/
 
