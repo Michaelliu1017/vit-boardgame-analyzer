@@ -2,6 +2,9 @@
 .DS_Store
 **/.DS_Store
 
+#ide
+.idea
+
 # Python
 app/backend/venv/
 app/backend/__pycache__/
