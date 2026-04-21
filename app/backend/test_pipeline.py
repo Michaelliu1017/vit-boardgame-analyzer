@@ -52,7 +52,7 @@ OWL_TEXTS = [[
 ]]
 
 # ── 读取图片 ──────────────────────────────────────────
-image_path = sys.argv[1] if len(sys.argv) > 1 else "test/testnb.jpg"
+image_path = sys.argv[1] if len(sys.argv) > 1 else "test/t5.jpg"
 image      = Image.open(image_path).convert('RGB')
 print(f"\n图片: {image_path}  尺寸: {image.size}")
 

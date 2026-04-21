@@ -75,7 +75,7 @@ def get_faction_by_color(image: Image.Image, box) -> str:
 
 
 # ════════════════════════════════════════════════════════
-# 过滤包含其他框的大框（test_pipeline 逻辑A，overlap=0.8）
+# 过滤包含其他框的大框
 # ════════════════════════════════════════════════════════
 def filter_containing_boxes(boxes, scores, labels, overlap_threshold=0.8):
     if len(boxes) == 0:
@@ -124,11 +124,9 @@ def detect_pieces(image: Image.Image, owl_processor, owl_model,
     if len(boxes) == 0:
         return torch.tensor([]), torch.tensor([]), torch.tensor([])
 
-    # NMS
     keep   = nms(boxes, scores, iou_threshold=0.2)
     boxes  = boxes[keep]; scores = scores[keep]; labels = labels[keep]
 
-    # 面积和长宽比过滤（最新参数）
     img_w, img_h = image.size
     img_area     = img_w * img_h
     valid = []
@@ -145,8 +143,6 @@ def detect_pieces(image: Image.Image, owl_processor, owl_model,
 
     valid  = torch.tensor(valid)
     boxes  = boxes[valid]; scores = scores[valid]; labels = labels[valid]
-
-    # 过滤包含其他框的大框
     boxes, scores, labels = filter_containing_boxes(boxes, scores, labels)
 
     return boxes, scores, labels
@@ -168,7 +164,7 @@ def classify_pieces(image: Image.Image, boxes, vit_model, class_names):
 
 
 # ════════════════════════════════════════════════════════
-# Step 3: 统计兵力（颜色定阵营，ViT定兵种）
+# Step 3: 统计兵力
 # ════════════════════════════════════════════════════════
 def count_units(predictions, factions):
     attacker = {v: 0 for v in A_KEYS}
@@ -195,7 +191,7 @@ def mlp_predict(attacker, defender, mlp_model, mu, std):
               [defender.get(k,0) for k in D_KEYS])
     x      = np.array([vec15], dtype=np.float32)
     x_norm = (x - mu) / (std + 1e-8)
-    xt     = torch.tensor(x_norm).to(device)
+    xt     = torch.tensor(x_norm, dtype=torch.float32).to(device)
     with torch.no_grad():
         logit = mlp_model(xt).item()
     return float(1.0 / (1.0 + np.exp(-logit)))
@@ -203,36 +199,84 @@ def mlp_predict(attacker, defender, mlp_model, mu, std):
 
 # ════════════════════════════════════════════════════════
 # Step 5: 搜索最佳进攻配置
+#
+# 策略：混合采样
+#   - 一半样本：逐个买（每次1个），充分探索均衡配置
+#   - 一半样本：批量买（旧逻辑），探索集中配置
+# 两种策略各有优势，合并取最优
 # ════════════════════════════════════════════════════════
 def calc_ipc(units: dict, cost_table: dict) -> int:
     return sum(units.get(k,0) * v for k,v in cost_table.items())
 
 
+def _eval_vec(a, d_vec, mlp_model, mu, std):
+    """直接用 vec15 评估，和旧 main.py 的 mlp_predict 完全一致"""
+    vec15  = list(a) + d_vec
+    x      = np.array([vec15], dtype=np.float32)
+    x_norm = (x - mu) / (std + 1e-8)
+    xt     = torch.tensor(x_norm, dtype=torch.float32).to(device)
+    with torch.no_grad():
+        logit = mlp_model(xt).item()
+    return float(1.0 / (1.0 + np.exp(-logit)))
+
+
 def find_best_attack(defender, budget, mlp_model, mu, std,
-                     n_samples=5000, seed=42):
+                     n_samples=20000, seed=42):
     if budget <= 0:
         return {k: 0 for k in A_KEYS}, 0.0
 
-    rng   = np.random.default_rng(seed)
-    costs = np.array([UNIT_COST[u] for u in A_KEYS], dtype=np.int32)
-    best_wr, best_atk = -1.0, None
+    rng    = np.random.default_rng(seed)
+    costs  = np.array([UNIT_COST[u] for u in A_KEYS], dtype=np.int32)
+    d_vec  = [defender.get(k, 0) for k in D_KEYS]
 
-    for _ in range(n_samples):
-        a = np.zeros(7, dtype=np.int32)
+    best_wr  = -1.0
+    best_atk = None
+
+    half = n_samples // 2
+
+    # ── 策略1：逐个买（每次买1个），充分探索均衡配置 ──────
+    # 这是关键：可以生成 2art+3inf 这类不花满预算的优质组合
+    for _ in range(half):
+        a         = np.zeros(7, dtype=np.int32)
         remaining = budget
+
+        while remaining >= costs.min():
+            affordable = np.where(costs <= remaining)[0]
+            j          = int(rng.choice(affordable))
+            a[j]      += 1
+            remaining  -= int(costs[j])
+
+        if a.sum() == 0:
+            continue
+
+        wr = _eval_vec(a, d_vec, mlp_model, mu, std)
+        if wr > best_wr:
+            best_wr  = wr
+            best_atk = dict(zip(A_KEYS, a.tolist()))
+
+    # ── 策略2：批量买（旧逻辑），探索集中配置 ────────────
+    # 旧 main.py 的原始逻辑，可以生成纯步兵、重坦等极端配置
+    for _ in range(n_samples - half):
+        a         = np.zeros(7, dtype=np.int32)
+        remaining = budget
+
         for _ in range(64):
-            j = int(rng.integers(0,7))
+            j = int(rng.integers(0, 7))
             c = int(costs[j])
             if c <= remaining:
-                k = int(rng.integers(1, remaining//c+1))
-                a[j] += k; remaining -= k*c
-            if remaining < costs.min(): break
-        if a.sum() == 0: continue
+                k      = int(rng.integers(1, remaining // c + 1))
+                a[j]  += k
+                remaining -= k * c
+            if remaining < costs.min():
+                break
 
-        atk = dict(zip(A_KEYS, a.tolist()))
-        wr  = mlp_predict(atk, defender, mlp_model, mu, std)
+        if a.sum() == 0:
+            continue
+
+        wr = _eval_vec(a, d_vec, mlp_model, mu, std)
         if wr > best_wr:
-            best_wr = wr; best_atk = atk
+            best_wr  = wr
+            best_atk = dict(zip(A_KEYS, a.tolist()))
 
     return best_atk, best_wr
 
@@ -250,43 +294,52 @@ def run_pipeline(image_path, models, budget_offsets=BUDGET_OFFSETS):
 
     image = Image.open(image_path).convert('RGB')
 
-    # Step 1: 检测
+    print("Step 1: 检测棋子位置...")
     boxes, scores, labels = detect_pieces(image, owl_processor, owl_model)
+    print(f"  检测到 {len(boxes)} 个棋子")
     if len(boxes) == 0:
         print("未检测到棋子")
         return None
 
-    # Step 2: 颜色判断阵营
     factions = [get_faction_by_color(image, box) for box in boxes]
+    print(f"  颜色判断 → JP: {sum(1 for f in factions if f=='JP')}  "
+          f"US: {sum(1 for f in factions if f=='US')}")
 
-    # Step 3: ViT 分类
+    print("Step 2: ViT 分类棋子...")
     predictions = classify_pieces(image, boxes, vit_model, class_names)
+    print(f"  分类结果: {Counter(predictions)}")
 
-    # Step 4: 统计兵力
     attacker, defender = count_units(predictions, factions)
+    print(f"  进攻方 (JP): {attacker}")
+    print(f"  防守方 (US): {defender}")
 
-    # Step 5: 当前胜率
-    current_wr   = mlp_predict(attacker, defender, mlp_model, mu, std)
     defender_ipc = calc_ipc(defender, DEFENDER_COST)
+    print(f"  防守方总 IPC: {defender_ipc}")
 
-    # Step 6: 多预算推荐
+    current_wr = mlp_predict(attacker, defender, mlp_model, mu, std)
+    print(f"\n当前胜率: {current_wr*100:.1f}%")
+
+    print("\n搜索最佳进攻配置...")
     recommendations = []
     for offset in budget_offsets:
         budget = max(3, defender_ipc + offset)
-        label  = (f"Same IPC ({budget})" if offset == 0
-                  else f"{'Above' if offset>0 else 'Below'} {abs(offset)} IPC ({budget})")
+        label  = (f"与敌方相同 ({budget} IPC)" if offset == 0
+                  else f"{'高于' if offset>0 else '低于'}敌方 "
+                       f"{abs(offset)} IPC ({budget} IPC)")
         best_atk, best_wr = find_best_attack(
             defender, budget, mlp_model, mu, std
         )
         recommendations.append({
-            "label":    label,
-            "budget":   budget,
-            "offset":   offset,
-            "attacker": best_atk,
-            "win_rate": best_wr,
+            "label": label, "budget": budget,
+            "offset": offset, "attacker": best_atk, "win_rate": best_wr,
         })
+        print(f"  {label}")
+        print(f"    配置: { {k:v for k,v in best_atk.items() if v>0} }")
+        print(f"    胜率: {best_wr*100:.1f}%")
 
     return {
+        "attacker_faction": ATTACKER_FACTION,
+        "defender_faction": DEFENDER_FACTION,
         "attacker":         attacker,
         "defender":         defender,
         "defender_ipc":     defender_ipc,
