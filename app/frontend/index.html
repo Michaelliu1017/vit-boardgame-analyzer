@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Axis & Allies Analyzer</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Courier New', monospace; background: #0a0a0a; color: #e0e0e0; min-height: 100vh; }
+
+  .header { padding: 24px 32px; border-bottom: 1px solid #222; display: flex; align-items: center; gap: 12px; }
+  .header h1 { font-size: 16px; font-weight: normal; letter-spacing: 4px; text-transform: uppercase; color: #fff; }
+  .dot { width: 8px; height: 8px; background: #f97316; border-radius: 50%; }
+
+  .main { max-width: 960px; margin: 0 auto; padding: 40px 32px; }
+
+  .btn-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin-bottom: 40px; }
+  .btn-feature {
+    padding: 20px; border: 1px solid #333; background: #111; cursor: pointer;
+    text-align: left; color: #e0e0e0; font-family: inherit; font-size: 12px;
+    letter-spacing: 2px; text-transform: uppercase; transition: all 0.15s;
+  }
+  .btn-feature:hover { border-color: #f97316; color: #f97316; }
+  .btn-feature.active { border-color: #f97316; background: #1a0f05; color: #f97316; }
+  .btn-feature .num { font-size: 24px; display: block; margin-bottom: 8px; color: #555; }
+  .btn-feature.active .num { color: #f97316; }
+
+  .upload-zone {
+    border: 1px dashed #333; padding: 48px; text-align: center; cursor: pointer;
+    transition: all 0.15s; margin-bottom: 24px;
+  }
+  .upload-zone:hover { border-color: #f97316; }
+  .upload-zone input { display: none; }
+  .upload-zone p { color: #555; font-size: 12px; letter-spacing: 2px; text-transform: uppercase; }
+  .upload-zone.has-image { border-style: solid; border-color: #333; padding: 0; overflow: hidden; cursor: default; }
+  .upload-zone.has-image img { width: 100%; max-height: 300px; object-fit: contain; background: #000; }
+
+  .reupload-btn {
+    display: block; width: 100%; padding: 10px; background: #111; border: none;
+    border-top: 1px solid #222; color: #555; font-family: inherit; font-size: 11px;
+    letter-spacing: 2px; text-transform: uppercase; cursor: pointer; transition: all 0.15s;
+  }
+  .reupload-btn:hover { color: #f97316; }
+
+  .modal-overlay {
+    display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.85);
+    z-index: 100; align-items: center; justify-content: center;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: #111; border: 1px solid #333; width: 720px; max-width: 95vw;
+    max-height: 90vh; overflow-y: auto; padding: 32px;
+  }
+  .modal-title { font-size: 11px; letter-spacing: 3px; text-transform: uppercase; color: #555; margin-bottom: 8px; }
+  .modal-ipc-preview { font-size: 11px; color: #444; margin-bottom: 24px; letter-spacing: 1px; }
+  .modal-ipc-preview span { color: #888; }
+
+  .factions { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 24px; }
+  .faction-col h3 { font-size: 11px; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+  .faction-col.jp h3 { color: #f97316; }
+  .faction-col.us h3 { color: #4ade80; }
+  .ipc-total { font-size: 10px; letter-spacing: 1px; color: #444; }
+
+  .unit-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+  .unit-row label { font-size: 12px; color: #888; letter-spacing: 1px; }
+  .unit-row .right { display: flex; align-items: center; gap: 8px; }
+  .unit-row .ipc-hint { font-size: 10px; color: #333; }
+  .unit-row input {
+    width: 56px; background: #000; border: 1px solid #333; color: #e0e0e0;
+    padding: 4px 8px; font-family: inherit; font-size: 14px; text-align: center;
+  }
+  .unit-row input:focus { outline: none; border-color: #f97316; }
+
+  .modal-actions { display: flex; gap: 12px; margin-top: 24px; align-items: center; flex-wrap: wrap; }
+  .btn { padding: 10px 20px; border: 1px solid #333; background: transparent; color: #e0e0e0; cursor: pointer; font-family: inherit; font-size: 11px; letter-spacing: 2px; text-transform: uppercase; transition: all 0.15s; }
+  .btn:hover { border-color: #f97316; color: #f97316; }
+  .btn.primary { border-color: #f97316; color: #f97316; }
+  .btn.primary:hover { background: #f97316; color: #000; }
+
+  .attacker-badge { font-size: 10px; letter-spacing: 1px; padding: 2px 8px; border: 1px solid; }
+  .attacker-badge.jp { color: #f97316; border-color: #f97316; }
+  .attacker-badge.us { color: #4ade80; border-color: #4ade80; }
+
+  .result-panel { margin-top: 32px; }
+  .result-block { border: 1px solid #222; padding: 24px; margin-bottom: 16px; }
+  .result-block h3 { font-size: 11px; letter-spacing: 3px; text-transform: uppercase; color: #555; margin-bottom: 16px; }
+
+  .winrate-big { font-size: 48px; font-weight: normal; letter-spacing: -2px; }
+  .winrate-big.high { color: #4ade80; }
+  .winrate-big.mid  { color: #fbbf24; }
+  .winrate-big.low  { color: #f87171; }
+
+  .ipc-row { font-size: 11px; color: #444; margin-top: 8px; letter-spacing: 1px; }
+  .ipc-row span { color: #666; }
+
+  .rec-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .rec-card { border: 1px solid #222; padding: 20px; }
+  .rec-card h4 { font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: #555; margin-bottom: 12px; }
+  .rec-card .wr { font-size: 32px; margin-bottom: 12px; }
+  .rec-card .wr.high { color: #4ade80; }
+  .rec-card .wr.mid  { color: #fbbf24; }
+  .rec-card .wr.low  { color: #f87171; }
+  .rec-card .units { font-size: 12px; color: #555; line-height: 2; }
+  .rec-card .units .row { display: flex; justify-content: space-between; border-bottom: 1px solid #1a1a1a; padding: 2px 0; }
+  .rec-card .units .row .name { color: #666; }
+  .rec-card .units .row .val { color: #aaa; }
+
+  .sim-result { padding: 16px 0; }
+  .sim-winner { font-size: 28px; letter-spacing: 4px; text-transform: uppercase; margin-bottom: 24px; }
+  .sim-winner.jp { color: #f97316; }
+  .sim-winner.us { color: #4ade80; }
+  .survivors-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+  .survivor-col h4 { font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: #555; margin-bottom: 12px; }
+  .survivor-row { display: flex; justify-content: space-between; font-size: 12px; padding: 5px 0; border-bottom: 1px solid #1a1a1a; }
+  .survivor-row .count { color: #e0e0e0; }
+  .survivor-row .name { color: #555; }
+
+  .loading { text-align: center; padding: 40px; color: #555; font-size: 12px; letter-spacing: 3px; text-transform: uppercase; }
+  .loading::after { content: ''; animation: dots 1.2s infinite; }
+  @keyframes dots { 0%,20%{content:'.'} 40%{content:'..'} 60%,100%{content:'...'} }
+  .error { color: #f87171; font-size: 12px; letter-spacing: 1px; padding: 16px; border: 1px solid #f8717133; }
+  .divider { border: none; border-top: 1px solid #1a1a1a; margin: 16px 0; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="dot"></div>
+  <h1>Axis &amp; Allies Pacific 1940 — Battle Analyzer</h1>
+</div>
+
+<div class="main">
+  <div class="btn-row">
+    <button class="btn-feature active" onclick="setMode(1)" id="btn1">
+      <span class="num">01</span>Win Rate Prediction
+    </button>
+    <button class="btn-feature" onclick="setMode(2)" id="btn2">
+      <span class="num">02</span>Best Composition
+    </button>
+    <button class="btn-feature" onclick="setMode(3)" id="btn3">
+      <span class="num">03</span>Combat Simulation
+    </button>
+  </div>
+
+  <div class="upload-zone" id="uploadZone" onclick="document.getElementById('fileInput').click()">
+    <input type="file" id="fileInput" accept="image/*" onchange="handleFile(event)">
+    <p>Click to upload image</p>
+    <p style="margin-top:8px;color:#333">jpg / png / heic</p>
+  </div>
+
+  <div id="resultPanel" class="result-panel"></div>
+</div>
+
+<!-- Modal -->
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal">
+    <div class="modal-title">Confirm units — adjust if recognition was inaccurate</div>
+    <div class="modal-ipc-preview" id="ipcPreview"></div>
+
+    <div style="margin-bottom:16px;display:flex;align-items:center;gap:8px;">
+      <span style="font-size:11px;letter-spacing:1px;color:#555;">Attacker:</span>
+      <span id="attackerLabel" class="attacker-badge jp">Japan</span>
+      <button class="btn" style="font-size:10px;padding:6px 14px;" onclick="toggleAttacker()">Switch</button>
+    </div>
+
+    <div class="factions">
+      <div class="faction-col jp">
+        <h3>Japan <span class="ipc-total" id="jpIpcTotal"></span></h3>
+        <div id="jpUnits"></div>
+      </div>
+      <div class="faction-col us">
+        <h3>United States <span class="ipc-total" id="usIpcTotal"></span></h3>
+        <div id="usUnits"></div>
+      </div>
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn primary" onclick="confirmUnits()">Confirm</button>
+      <button class="btn" onclick="closeModal()">Back</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const BASE = 'http://localhost:8000'
+
+// 改这里
+const UNITS = ['Infantry','Mech','Artillery','Tank',
+               'Fighter','TacBmb','StrBmb','AA']
+
+const UNIT_LABEL = {
+    Infantry:'Infantry', Mech:'Mech Infantry', Artillery:'Artillery',
+    Tank:'Tank', Fighter:'Fighter',
+    TacBmb:'Tac Bomber',     // 改
+    StrBmb:'Str Bomber',     // 改
+    AA:'Anti-Air'
+}
+
+const UNIT_IPC = {
+    Infantry:3, Mech:4, Artillery:4, Tank:6,
+    Fighter:10, TacBmb:11, StrBmb:12, AA:5   // 改
+}
+
+let mode = 1
+let attacker = 'JP'
+let imageFile = null
+
+function setMode(m) {
+  mode = m
+  ;[1,2,3].forEach(i =>
+    document.getElementById('btn'+i).classList.toggle('active', i===m)
+  )
+  document.getElementById('resultPanel').innerHTML = ''
+}
+
+function handleFile(e) {
+  imageFile = e.target.files[0]
+  if (!imageFile) return
+
+  const zone = document.getElementById('uploadZone')
+  const url  = URL.createObjectURL(imageFile)
+  zone.innerHTML = `
+    <img src="${url}" alt="uploaded">
+    <button class="reupload-btn" onclick="document.getElementById('fileInput2').click()">
+      Upload different image
+    </button>
+    <input type="file" id="fileInput2" accept="image/*"
+           style="display:none" onchange="handleFile(event)">
+  `
+  zone.classList.add('has-image')
+  zone.onclick = null
+
+  analyze()
+}
+
+async function analyze() {
+  const panel = document.getElementById('resultPanel')
+  panel.innerHTML = '<div class="loading">Analyzing image</div>'
+
+  const form = new FormData()
+  form.append('image', imageFile)
+
+  try {
+    const res  = await fetch(`${BASE}/analyze`, { method:'POST', body: form })
+    const data = await res.json()
+    panel.innerHTML = ''
+    openModal(data)
+  } catch(e) {
+    panel.innerHTML = `<div class="error">Connection error — is backend running on port 8000?<br>${e.message}</div>`
+  }
+}
+
+function calcIpc(faction) {
+  return UNITS.reduce((sum, u) => {
+    const val = parseInt(document.getElementById(faction+'_'+u)?.value) || 0
+    return sum + val * UNIT_IPC[u]
+  }, 0)
+}
+
+function updateIpcTotals() {
+  const jp = calcIpc('JP')
+  const us = calcIpc('US')
+  document.getElementById('jpIpcTotal').textContent = `— ${jp} IPC`
+  document.getElementById('usIpcTotal').textContent = `— ${us} IPC`
+}
+
+function buildUnitRows(faction, data) {
+  const container = document.getElementById(faction.toLowerCase()+'Units')
+  container.innerHTML = ''
+  UNITS.forEach(u => {
+    const row = document.createElement('div')
+    row.className = 'unit-row'
+    row.innerHTML = `
+      <label>${UNIT_LABEL[u]}</label>
+      <div class="right">
+        <span class="ipc-hint">${UNIT_IPC[u]} IPC</span>
+        <input type="number" min="0" value="${data[u]||0}"
+               id="${faction}_${u}" oninput="updateIpcTotals()">
+      </div>
+    `
+    container.appendChild(row)
+  })
+}
+
+function openModal(data) {
+  buildUnitRows('JP', data.JP || {})
+  buildUnitRows('US', data.US || {})
+  updateIpcTotals()
+  updateAttackerLabel()
+  document.getElementById('modalOverlay').classList.add('open')
+}
+
+function closeModal() {
+  document.getElementById('modalOverlay').classList.remove('open')
+}
+
+function toggleAttacker() {
+  attacker = attacker === 'JP' ? 'US' : 'JP'
+  updateAttackerLabel()
+}
+
+function updateAttackerLabel() {
+  const el = document.getElementById('attackerLabel')
+  el.textContent = attacker === 'JP' ? 'Japan' : 'United States'
+  el.className   = 'attacker-badge ' + attacker.toLowerCase()
+}
+
+function getUnits(faction) {
+  const obj = {}
+  UNITS.forEach(u => {
+    obj[u] = parseInt(document.getElementById(faction+'_'+u)?.value) || 0
+  })
+  return obj
+}
+
+async function confirmUnits() {
+  closeModal()
+  const panel = document.getElementById('resultPanel')
+  panel.innerHTML = '<div class="loading">Computing</div>'
+
+  const JP   = getUnits('JP')
+  const US   = getUnits('US')
+  const body = { attacker, JP, US }
+
+  try {
+    if (mode === 1) {
+      const res  = await fetch(`${BASE}/winrate`, {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify(body)
+      })
+      showWinrate(await res.json())
+
+    } else if (mode === 2) {
+      const res  = await fetch(`${BASE}/recommend`, {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify(body)
+      })
+      showRecommend(await res.json())
+
+    } else {
+      const res  = await fetch(`${BASE}/simulate`, {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify(body)
+      })
+      showSimulate(await res.json())
+    }
+  } catch(e) {
+    panel.innerHTML = `<div class="error">Error: ${e.message}</div>`
+  }
+}
+
+function wrClass(wr) { return wr >= 0.6 ? 'high' : wr >= 0.4 ? 'mid' : 'low' }
+
+function showWinrate(data) {
+  const pct      = (data.win_rate * 100).toFixed(1)
+  const atkName  = attacker === 'JP' ? 'Japan' : 'United States'
+  document.getElementById('resultPanel').innerHTML = `
+    <div class="result-block">
+      <h3>Win rate — ${atkName} attacking</h3>
+      <div class="winrate-big ${wrClass(data.win_rate)}">${pct}%</div>
+      <div class="ipc-row">
+        Attacker IPC: <span>${data.attacker_ipc}</span>
+        &nbsp;·&nbsp;
+        Defender IPC: <span>${data.defender_ipc}</span>
+      </div>
+    </div>
+  `
+}
+
+function buildUnitsTable(units) {
+  return UNITS
+    .filter(u => (units[u] || 0) > 0)
+    .map(u => `
+      <div class="row">
+        <span class="name">${UNIT_LABEL[u]}</span>
+        <span class="val">${units[u]}</span>
+      </div>
+    `).join('') || '<div style="color:#333;font-size:11px">—</div>'
+}
+
+function showRecommend(data) {
+  const cur     = (data.current_win_rate * 100).toFixed(1)
+  const atkName = attacker === 'JP' ? 'Japan' : 'United States'
+
+  const recs = data.recommendations.map(r => {
+    const pct = (r.win_rate * 100).toFixed(1)
+    return `
+      <div class="rec-card">
+        <h4>${r.label}</h4>
+        <div class="wr ${wrClass(r.win_rate)}">${pct}%</div>
+        <div class="units">${buildUnitsTable(r.units)}</div>
+      </div>
+    `
+  }).join('')
+
+  document.getElementById('resultPanel').innerHTML = `
+    <div class="result-block">
+      <h3>Current win rate — ${atkName} attacking</h3>
+      <div class="winrate-big ${wrClass(data.current_win_rate)}">${cur}%</div>
+      <div class="ipc-row">
+        Attacker IPC: <span>${data.attacker_ipc}</span>
+        &nbsp;·&nbsp;
+        Defender IPC: <span>${data.defender_ipc}</span>
+      </div>
+    </div>
+    <div class="result-block">
+      <h3>Best attacker compositions</h3>
+      <div class="rec-grid">${recs}</div>
+    </div>
+  `
+}
+
+function showSimulate(data) {
+  const defName  = attacker === 'JP' ? 'United States' : 'Japan'
+  const atkName  = attacker === 'JP' ? 'Japan' : 'United States'
+  const winName  = data.winner === attacker ? atkName : defName
+  const winClass = data.winner === 'JP' ? 'jp' : 'us'
+
+  const renderSurvivors = (units) =>
+    UNITS.map(u => `
+      <div class="survivor-row">
+        <span class="name">${UNIT_LABEL[u]}</span>
+        <span class="count">${units[u] || 0}</span>
+      </div>
+    `).join('')
+
+  document.getElementById('resultPanel').innerHTML = `
+    <div class="result-block">
+      <h3>Combat result</h3>
+      <div class="sim-result">
+        <div class="sim-winner ${winClass}">${winName} wins</div>
+        <div class="survivors-grid">
+          <div class="survivor-col">
+            <h4>Attacker survivors (${atkName})</h4>
+            ${renderSurvivors(data.attacker_survivors)}
+          </div>
+          <div class="survivor-col">
+            <h4>Defender survivors (${defName})</h4>
+            ${renderSurvivors(data.defender_survivors)}
+          </div>
+        </div>
+      </div>
+    </div>
+  `
+}
+</script>
+</body>
+</html>
