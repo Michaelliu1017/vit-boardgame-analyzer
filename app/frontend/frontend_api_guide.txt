@@ -1,0 +1,120 @@
+Base URL: http://localhost:8000
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+1. Image Recognition
+POST /analyze
+Content-Type: multipart/form-data
+Field name: image (image file)
+
+Response:
+{
+  "JP": { "Infantry":2, "Mech":0, "Artillery":1,
+          "Tank":0, "Fighter":0, "TacBomber":0,
+          "StrBomber":0, "AA":0 },
+  "US": { "Infantry":3, "Mech":0, "Artillery":1,
+          "Tank":0, "Fighter":0, "TacBomber":0,
+          "StrBomber":0, "AA":0 }
+}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+2. Win Rate Prediction
+POST /winrate
+{
+  "attacker": "JP",          ← attacking faction, "JP" or "US"
+  "JP": { "Infantry":2, "Mech":0, "Artillery":1,
+          "Tank":0, "Fighter":0, "TacBomber":0,
+          "StrBomber":0, "AA":0 },
+  "US": { "Infantry":3, ... }
+}
+
+Response:
+{ "win_rate": 0.54 }        ← attacker win probability [0,1]
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+3. Best Composition Recommendation
+POST /recommend
+{
+  "attacker": "JP",
+  "ipc_offset": 5,           ← user-entered number, can be negative
+  "JP": { "Infantry":2, ... },
+  "US": { "Infantry":3, ... }
+}
+
+Response:
+{
+  "current_win_rate": 0.54,  ← win rate with current units
+  "defender_ipc": 13,        ← total IPC value of defender
+  "recommendations": [
+    {
+      "label":    "Below 5 IPC (13)",
+      "budget":   13,
+      "units":    { "Infantry":3, "Mech":0, "Artillery":2, ... },
+      "win_rate": 0.48
+    },
+    {
+      "label":    "Same IPC (18)",
+      "budget":   18,
+      "units":    { "Infantry":4, "Mech":0, "Artillery":2, ... },
+      "win_rate": 0.61
+    },
+    {
+      "label":    "Above 5 IPC (23)",
+      "budget":   23,
+      "units":    { "Infantry":5, "Mech":0, "Artillery":3, ... },
+      "win_rate": 0.72
+    }
+  ]
+}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+4. Combat Simulation
+POST /simulate
+{
+  "attacker": "JP",
+  "JP": { "Infantry":2, "Mech":0, "Artillery":1, ... },
+  "US": { "Infantry":3, "Mech":0, "Artillery":1, ... }
+}
+
+Response:
+{
+  "winner": "JP",                           ← winning faction
+  "attacker_survivors": {
+    "Infantry":1, "Mech":0, "Artillery":0,
+    "Tank":0, "Fighter":0, "TacBomber":0,
+    "StrBomber":0, "AA":0
+  },
+  "defender_survivors": {
+    "Infantry":0, "Mech":0, "Artillery":0,
+    "Tank":0, "Fighter":0, "TacBomber":0,
+    "StrBomber":0, "AA":0
+  }
+}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+5. Health Check
+GET /health
+Response: { "status": "ok" }
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Unit Name Reference
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Infantry   → Standard infantry unit
+Mech       → Mechanized infantry
+Artillery  → Artillery unit
+Tank       → Armored tank
+Fighter    → Fighter aircraft
+TacBomber  → Tactical bomber
+StrBomber  → Strategic bomber
+AA         → Anti-aircraft gun (defender only for AA key)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Notes
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+- All unit counts are integers >= 0
+- "attacker" field must be either "JP" or "US"
+- ipc_offset defaults to 0 if not provided
+- /recommend returns 3 budgets: (offset-5), (offset), (offset+5)
+  relative to defender's total IPC
+- /simulate runs a single combat round using the game rules
+  (AA fires first, artillery support bonuses apply)
+- All win_rate values are floats in range [0.0, 1.0]
