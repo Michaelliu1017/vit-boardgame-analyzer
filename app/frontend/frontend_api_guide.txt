@@ -1,120 +1,251 @@
-Base URL: http://localhost:8000
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  Axis & Allies Pacific 1940 — Battle Analyzer API Guide
+  For Frontend Developers
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Base URL
+────────
+http://localhost:8000
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Unit Names Reference
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+All endpoints use the following unit name strings:
+
+  "Infantry"    Infantry unit           (3 IPC)
+  "Mech"        Mechanized infantry     (4 IPC)
+  "Artillery"   Artillery               (4 IPC)
+  "Tank"        Tank                    (6 IPC)
+  "Fighter"     Fighter aircraft        (10 IPC)
+  "TacBmb"      Tactical bomber         (11 IPC)
+  "StrBmb"      Strategic bomber        (12 IPC)
+  "AA"          Anti-aircraft gun       (5 IPC, defender only)
+
+"attacker" field accepts: "JP" (Japan) or "US" (United States)
+Default attacker is Japan.
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 1. Image Recognition
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
 POST /analyze
 Content-Type: multipart/form-data
-Field name: image (image file)
+
+Field:
+  image   (file)   jpg or png photo of the board
 
 Response:
 {
-  "JP": { "Infantry":2, "Mech":0, "Artillery":1,
-          "Tank":0, "Fighter":0, "TacBomber":0,
-          "StrBomber":0, "AA":0 },
-  "US": { "Infantry":3, "Mech":0, "Artillery":1,
-          "Tank":0, "Fighter":0, "TacBomber":0,
-          "StrBomber":0, "AA":0 }
+  "JP": {
+    "Infantry": 2,
+    "Mech": 0,
+    "Artillery": 1,
+    "Tank": 0,
+    "Fighter": 0,
+    "TacBmb": 0,
+    "StrBmb": 0,
+    "AA": 0
+  },
+  "US": {
+    "Infantry": 3,
+    "Mech": 0,
+    "Artillery": 1,
+    "Tank": 0,
+    "Fighter": 0,
+    "TacBmb": 0,
+    "StrBmb": 0,
+    "AA": 0
+  }
 }
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Notes:
+- All unit counts are integers >= 0
+- If no pieces are detected, all counts will be 0 and
+  a "warning" field will be included in the response
+- The user should be able to manually edit the counts
+  before proceeding, in case recognition is inaccurate
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 2. Win Rate Prediction
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
 POST /winrate
-{
-  "attacker": "JP",          ← attacking faction, "JP" or "US"
-  "JP": { "Infantry":2, "Mech":0, "Artillery":1,
-          "Tank":0, "Fighter":0, "TacBomber":0,
-          "StrBomber":0, "AA":0 },
-  "US": { "Infantry":3, ... }
-}
+Content-Type: application/json
 
-Response:
-{ "win_rate": 0.54 }        ← attacker win probability [0,1]
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-3. Best Composition Recommendation
-POST /recommend
+Request:
 {
   "attacker": "JP",
-  "ipc_offset": 5,           ← user-entered number, can be negative
-  "JP": { "Infantry":2, ... },
-  "US": { "Infantry":3, ... }
+  "JP": {
+    "Infantry": 2, "Mech": 0, "Artillery": 1,
+    "Tank": 0, "Fighter": 0, "TacBmb": 0,
+    "StrBmb": 0, "AA": 0
+  },
+  "US": {
+    "Infantry": 3, "Mech": 0, "Artillery": 1,
+    "Tank": 0, "Fighter": 0, "TacBmb": 0,
+    "StrBmb": 0, "AA": 0
+  }
 }
 
 Response:
 {
-  "current_win_rate": 0.54,  ← win rate with current units
-  "defender_ipc": 13,        ← total IPC value of defender
+  "win_rate": 0.54,        float [0.0, 1.0] — attacker win probability
+  "attacker_ipc": 10,      total IPC value of attacker's current units
+  "defender_ipc": 13       total IPC value of defender's current units
+}
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+3. Best Composition Recommendation
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+POST /recommend
+Content-Type: application/json
+
+Request:
+{
+  "attacker": "JP",
+  "JP": { "Infantry": 2, "Artillery": 1, ... },
+  "US": { "Infantry": 3, "Artillery": 1, ... }
+}
+
+Response:
+{
+  "current_win_rate": 0.54,
+  "attacker_ipc": 10,
+  "defender_ipc": 13,
   "recommendations": [
     {
-      "label":    "Below 5 IPC (13)",
+      "label":    "Attacker budget (10 IPC)",
+      "budget":   10,
+      "units": {
+        "Infantry": 2, "Mech": 0, "Artillery": 1,
+        "Tank": 0, "Fighter": 0, "TacBmb": 0,
+        "StrBmb": 0, "AA": 0
+      },
+      "win_rate": 0.58
+    },
+    {
+      "label":    "Defender budget (13 IPC)",
       "budget":   13,
-      "units":    { "Infantry":3, "Mech":0, "Artillery":2, ... },
-      "win_rate": 0.48
-    },
-    {
-      "label":    "Same IPC (18)",
-      "budget":   18,
-      "units":    { "Infantry":4, "Mech":0, "Artillery":2, ... },
-      "win_rate": 0.61
-    },
-    {
-      "label":    "Above 5 IPC (23)",
-      "budget":   23,
-      "units":    { "Infantry":5, "Mech":0, "Artillery":3, ... },
-      "win_rate": 0.72
+      "units": {
+        "Infantry": 3, "Mech": 0, "Artillery": 2,
+        "Tank": 0, "Fighter": 0, "TacBmb": 0,
+        "StrBmb": 0, "AA": 0
+      },
+      "win_rate": 0.67
     }
   ]
 }
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Notes:
+- Returns exactly 2 recommendations
+- Recommendation 1: best composition within attacker's current IPC
+- Recommendation 2: best composition within defender's current IPC
+- "units" shows the optimal attacker force for each budget
+- "win_rate" is the predicted win probability for that composition
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 4. Combat Simulation
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
 POST /simulate
+Content-Type: application/json
+
+Request:
 {
   "attacker": "JP",
-  "JP": { "Infantry":2, "Mech":0, "Artillery":1, ... },
-  "US": { "Infantry":3, "Mech":0, "Artillery":1, ... }
+  "JP": { "Infantry": 2, "Artillery": 1, ... },
+  "US": { "Infantry": 3, "Artillery": 1, ... }
 }
 
 Response:
 {
-  "winner": "JP",                           ← winning faction
+  "winner": "JP",
   "attacker_survivors": {
-    "Infantry":1, "Mech":0, "Artillery":0,
-    "Tank":0, "Fighter":0, "TacBomber":0,
-    "StrBomber":0, "AA":0
+    "Infantry": 1, "Mech": 0, "Artillery": 0,
+    "Tank": 0, "Fighter": 0, "TacBmb": 0,
+    "StrBmb": 0, "AA": 0
   },
   "defender_survivors": {
-    "Infantry":0, "Mech":0, "Artillery":0,
-    "Tank":0, "Fighter":0, "TacBomber":0,
-    "StrBomber":0, "AA":0
+    "Infantry": 0, "Mech": 0, "Artillery": 0,
+    "Tank": 0, "Fighter": 0, "TacBmb": 0,
+    "StrBmb": 0, "AA": 0
   }
 }
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Notes:
+- Simulates a single combat round using official A&A rules
+- "winner" is either "JP" or "US"
+- Survivors show remaining units after combat ends
+- AA gun fires first before regular combat begins
+- Artillery support bonus applies (paired infantry attacks at 2/6)
+- Tactical bomber bonus applies when paired with fighter or tank
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 5. Health Check
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
 GET /health
-Response: { "status": "ok" }
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Unit Name Reference
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Infantry   → Standard infantry unit
-Mech       → Mechanized infantry
-Artillery  → Artillery unit
-Tank       → Armored tank
-Fighter    → Fighter aircraft
-TacBomber  → Tactical bomber
-StrBomber  → Strategic bomber
-AA         → Anti-aircraft gun (defender only for AA key)
+Response:
+{ "status": "ok" }
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Notes
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-- All unit counts are integers >= 0
-- "attacker" field must be either "JP" or "US"
-- ipc_offset defaults to 0 if not provided
-- /recommend returns 3 budgets: (offset-5), (offset), (offset+5)
-  relative to defender's total IPC
-- /simulate runs a single combat round using the game rules
-  (AA fires first, artillery support bonuses apply)
-- All win_rate values are floats in range [0.0, 1.0]
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Recommended Frontend Flow
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Feature 1 — Win Rate Prediction:
+  Upload image → POST /analyze
+  → Show editable unit counts (JP left, US right)
+  → User selects attacker, confirms units
+  → POST /winrate
+  → Display win rate percentage
+
+Feature 2 — Best Composition:
+  Upload image → POST /analyze
+  → Show editable unit counts
+  → User selects attacker, confirms units
+  → POST /recommend
+  → Display current win rate + 2 recommended compositions
+    with their projected win rates
+
+Feature 3 — Combat Simulation:
+  Upload image → POST /analyze
+  → Show editable unit counts
+  → User selects attacker, confirms units
+  → POST /simulate
+  → Display winner + surviving units on both sides
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Example Fetch (JavaScript)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+// 1. Analyze image
+const form = new FormData()
+form.append('image', imageFile)
+const result = await fetch('http://localhost:8000/analyze', {
+  method: 'POST',
+  body: form
+}).then(r => r.json())
+
+// 2. Win rate
+const wr = await fetch('http://localhost:8000/winrate', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({
+    attacker: 'JP',
+    JP: result.JP,
+    US: result.US
+  })
+}).then(r => r.json())
+
+console.log(`Win rate: ${(wr.win_rate * 100).toFixed(1)}%`)
