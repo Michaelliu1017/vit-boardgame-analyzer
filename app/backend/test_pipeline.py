@@ -8,10 +8,12 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 from collections import Counter
 
+from pyBanner import banner, info, effect
+
 # ════════════════════════════════════════════════════════
 # global para
 # ════════════════════════════════════════════════════════
-IMAGE_PATH       = "test/t0.jpg"
+IMAGE_PATH       = "test/t5.jpg"
                                                                 # prev para set
 OWL_THRESHOLD    = 0.05   # OWL-ViT segmentation confidence             # 0.05
 NMS_IOU          = 0.1    # NMS overlap value，越低保留框越少              #  0.2 0.1
@@ -37,6 +39,16 @@ OWL_TEXTS = [[
     "plastic anti air gun toy",
 ]]
 
+# ── Startup banner  ─────────────────────────────
+banner(6)
+effect(0)
+info(0,
+     project="vit game analyzer",
+     version="1.3",
+     environment="Development",
+     description="",
+     status="Initializing... "
+     )
 # ════════════════════════════════════════════════════════
 # 加载模型
 # ════════════════════════════════════════════════════════
