@@ -194,8 +194,10 @@ The page expects the backend at `http://localhost:8000` (hardcoded in
 `<script>` near the top of `index.html`.
 
 <p align="center">
-  <img src="assets/display.JPG" width="500">
+  <img src="docs/images/ui-initial.png" width="700" alt="Initial UI — header, three mode buttons, upload zone">
 </p>
+
+<p align="center"><sub>The frontend on first load: header, three mode buttons (Win Rate Prediction is active by default), and the upload zone.</sub></p>
 
 ---
 
@@ -214,6 +216,12 @@ A typical session always follows the same three steps:
    numbers in the modal and adjust any wrong ones. Switch the **Attacker** with
    the toggle (default is Japan attacking USA). Hit **Confirm** to run the
    chosen mode.
+
+<p align="center">
+  <img src="docs/images/ui-states.png" width="600" alt="UI dynamic states — modal, win-rate panel, recommendations, simulation, loading/error">
+</p>
+
+<p align="center"><sub>All dynamic UI states stacked into one composite for reference: the confirm-units modal, the Win Rate / Best Composition / Combat Simulation result panels, plus the loading and error states.</sub></p>
 
 ### Mode 1 — Win Rate Prediction
 
