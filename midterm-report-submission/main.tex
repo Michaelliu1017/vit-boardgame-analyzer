@@ -376,6 +376,16 @@ MLP batch (10\textsuperscript{4}) & $\sim$3.8\,ms & $\approx$700$\times$ speedup
 The dominant bottleneck in \texttt{/recommend} is sequential MLP calls
 inside \texttt{find\_best\_attack}; batching all candidates in a single
 forward pass would reduce this from $\sim$5.6\,s to $<$50\,ms.
+Beyond this single fix, our profiling work also identifies a
+prioritised optimisation roadmap covering OWL-ViT text-embedding
+caching across requests, input-image downscaling before detection,
+batched ViT classification of all crops in a single forward, and
+\texttt{asyncio} offload of the synchronous \texttt{/analyze} pipeline
+so the FastAPI event loop is not blocked for the full inference
+window.
+We treat that roadmap as an engineering output of the midterm in its
+own right; concrete before/after numbers will appear in the final
+report.
 
 \subsection{\red{Detection Accuracy (planned)}}
 \red{We will hand-label bounding boxes on the 13 held-out board photos
@@ -434,8 +444,42 @@ The perception and serving infrastructure are complete and verified
 across macOS, Linux, and Windows.
 Remaining work concentrates on (i)~quantitative evaluation of the
 individual pipeline stages, (ii)~batching the MLP search to reduce
-\texttt{/recommend} latency by $\sim$700$\times$, and (iii)~a user
+\texttt{/recommend} latency by $\sim$700$\times$, (iii)~implementing
+the proposal's Bayesian composition-ranking layer, and (iv)~a user
 study comparing player decisions with and without the tool.
+
+\paragraph{What we built vs.\ what we leveraged.}
+The OWL-ViT detector~\cite{owlvit} weights and the
+\texttt{transformers} library~\cite{hftransformers} are used unchanged
+from public releases; the ViT-Small backbone is the unmodified
+\texttt{vit\_small\_patch16\_224} from \texttt{timm}~\cite{timm}, with
+only the seven-class linear head, the seven OWL-ViT text prompts, and
+the fine-tuning recipe being ours.
+Every other component --- the HSV faction-colour heuristic, the
+win-rate MLP architecture and its training pipeline, the rules-based
+combat simulator, the exhaustive IPC-budget recommender, the FastAPI
+service, and the static HTML frontend --- was implemented from scratch
+in this project.
+
+\paragraph{Engineering effort beyond modelling.}
+Three pieces of system work are claimed for credit alongside the
+modelling.
+First, a two-phase setup audit on a clean Windows host produced a
+README rewrite, surfaced three dependencies missing from
+\texttt{requirements.txt} (\texttt{transformers},
+\texttt{python-multipart}, \texttt{matplotlib}), and identified two
+runtime bugs in the existing code base
+(defender-Mech survivor accounting in the combat simulator and an
+\texttt{AA}-field omission in the \texttt{/recommend} payload).
+Second, a microbenchmark harness was written from scratch to
+characterise per-stage CPU latency
+(Table~\ref{tab:latency}); it both isolated the
+\texttt{find\_best\_attack} bottleneck and quantified the headroom
+available from batching.
+Third, a UX audit captured all six dynamic frontend states under
+headless Edge and produced a prioritised list of seventeen
+friction-and-gap items, including the \texttt{file://} CORS issue
+that originally blocked first-time users from completing an upload.
 
 % ============================================================
 {\small
