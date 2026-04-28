@@ -19,7 +19,7 @@
 %  [TEAM TODO]         = fill-in for facts only the team knows.
 % ============================================================
 
-\documentclass[10pt,twocolumn]{article}
+\documentclass[10pt,twocolumn,letterpaper]{article}
 
 % ---------- CVPR style ----------
 % Requires cvpr.sty from the author kit (see above).
@@ -28,15 +28,10 @@
 \usepackage{cvpr}
 % --------------------------------
 
-\usepackage{times}
-\usepackage{graphicx}
-\usepackage{amsmath}
-\usepackage{amssymb}
-\usepackage{booktabs}
+% times, graphicx, amsmath, amssymb, booktabs, xcolor, subcaption
+% are already loaded by cvpr.sty — only add packages it does NOT include
 \usepackage{microtype}
-\usepackage{xcolor}
-\usepackage{hyperref}
-\usepackage{subcaption}
+\usepackage[pagebackref,breaklinks=true,bookmarks=false]{hyperref}
 
 % Convenience command: mark unfinished work in red per rubric
 \newcommand{\red}[1]{\textcolor{red}{#1}}
@@ -390,7 +385,7 @@ study comparing player decisions with and without the tool.
 
 % ============================================================
 {\small
-\bibliographystyle{ieee_fullname}
+\bibliographystyle{ieee}
 \bibliography{references}
 }
 
