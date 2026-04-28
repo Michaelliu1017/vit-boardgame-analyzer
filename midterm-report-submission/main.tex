@@ -332,6 +332,22 @@ neighbour, and (c)~area and aspect-ratio sanity checks
 ($0.001 \leq A_{\text{box}}/A_{\text{img}} \leq 0.4$,
 $\text{AR} \leq 10$).
 
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=0.48\linewidth]{figures/owl_raw_labels.png}
+  \hfill
+  \includegraphics[width=0.48\linewidth]{figures/annotated_cv_boxes_green.jpg}
+  \caption{OWL-ViT used as a class-agnostic localiser. Left: raw
+    detector output annotates aircraft carriers and infantry as
+    ``yellow green plastic airplane toy'' and similar; per-prompt
+    labels are unreliable across our seven plastic-toy queries, so
+    we discard them. Right: bounding boxes only, after dropping
+    labels and applying NMS, containment, and area filters --- the
+    class-agnostic output we feed to the per-piece ViT classifier
+    of Section~\ref{sec:classify}.}
+  \label{fig:method_detect}
+\end{figure}
+
 \subsection{Classification (fine-tuned ViT)}
 \label{sec:classify}
 
@@ -492,20 +508,18 @@ Scenario & Simulator & MLP \\
 \end{tabular}
 \end{table}
 
-\begin{figure}[t]
-  \centering
-  \includegraphics[width=0.5\linewidth]{figures/ui_states.png}
-  \caption{End-to-end system output captured against the deployed
-    FastAPI backend. Top: the confirm-units modal that follows
-    \texttt{/analyze}. Middle row, left to right: the
-    Win-Rate Prediction panel (Mode~1, Section~\ref{sec:mlp}), the
-    Best-Composition recommendation cards (Mode~2,
-    Section~\ref{sec:recommend}), and the Combat-Simulation result
-    panel (Mode~3, Section~\ref{sec:sim}). Bottom: loading and error
-    states. The same composite is the basis for the UX audit
-    referenced in Section~\ref{sec:conclusion}.}
-  \label{fig:experiments}
-\end{figure}
+% [TEAM TODO] App screenshot from running FastAPI backend will go
+% here as fig:experiments.  Drop the file at
+% figures/app_screenshot.png and the figure block below will be
+% un-commented in the next edit.
+%
+% \begin{figure}[t]
+%   \centering
+%   \includegraphics[width=0.6\linewidth]{figures/app_screenshot.png}
+%   \caption{End-to-end system output captured against the deployed
+%     FastAPI backend at \texttt{http://localhost:8000/}.}
+%   \label{fig:experiments}
+% \end{figure}
 
 % ============================================================
 \section{Conclusion and Future Work}
