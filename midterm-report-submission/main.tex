@@ -1,0 +1,397 @@
+% ============================================================
+%  Pacific 1940 Battle Analyzer — CVPR Midterm Report
+%  Target: 4 pages, CVPR format
+%
+%  HOW TO COMPILE
+%  --------------
+%  1. Download the CVPR 2024 author kit:
+%       https://github.com/cvpr-org/author-kit
+%     Copy cvpr.sty (and eso-pic.sty if present) into this folder.
+%  2. pdflatex main.tex
+%     bibtex   main
+%     pdflatex main.tex
+%     pdflatex main.tex
+%
+%  CONVENTIONS IN THIS FILE
+%  ------------------------
+%  Text coloured RED   = work not yet done; required by the midterm
+%                        rubric to be marked in red.
+%  [TEAM TODO]         = fill-in for facts only the team knows.
+% ============================================================
+
+\documentclass[10pt,twocolumn]{article}
+
+% ---------- CVPR style ----------
+% Requires cvpr.sty from the author kit (see above).
+% Comment out if compiling without it; the document will still render
+% as a two-column article.
+\usepackage{cvpr}
+% --------------------------------
+
+\usepackage{times}
+\usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{booktabs}
+\usepackage{microtype}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{subcaption}
+
+% Convenience command: mark unfinished work in red per rubric
+\newcommand{\red}[1]{\textcolor{red}{#1}}
+
+% ============================================================
+\begin{document}
+
+% ---------- Title block ----------
+\title{%
+  Board-Game Position Analysis via Open-Vocabulary Detection\\
+  and Learned Battle Evaluation\\[4pt]
+  {\large Midterm Report}
+}
+
+\author{%
+  % [TEAM TODO] Fill in team member names and affiliations
+  Author One \quad Author Two \quad Author Three\\
+  Department / University\\
+  \texttt{\{author1, author2, author3\}@university.edu}
+}
+
+\maketitle
+% ---------------------------------
+
+% ============================================================
+\begin{abstract}
+We present a decision-support system for the tabletop war game
+\emph{Axis \& Allies Pacific 1940} that converts a single phone photograph
+of a contested territory into three tactical outputs: a predicted attacker
+win probability, an optimal unit-composition recommendation, and a
+deterministic combat simulation.
+The perception pipeline combines an open-vocabulary object detector
+(\mbox{OWL-ViT}~\cite{owlvit}) with a fine-tuned Vision
+Transformer~\cite{vit} classifier and a colour-based faction heuristic.
+Downstream reasoning is handled by a learned MLP surrogate trained on
+Monte-Carlo battle outcomes, together with an exhaustive IPC-budget search
+and a rules-based combat simulator.
+The full system runs end-to-end on CPU with a \mbox{FastAPI} backend
+and a static HTML frontend.
+\red{Quantitative evaluation of detection precision/recall, classifier
+accuracy, and MLP calibration is ongoing and will be reported in the
+final submission.}
+\end{abstract}
+
+% ============================================================
+\section{Introduction}
+\label{sec:intro}
+
+\emph{Axis \& Allies Pacific 1940} is a hex-and-counter war game whose
+combat resolution is fully governed by published probability tables:
+each unit type attacks and defends on a fixed dice value, casualties
+are removed in a prescribed order, and rounds repeat until one side is
+eliminated.
+In principle this makes the game an ideal target for automated
+decision-support: every question of the form \emph{``given this stack,
+what is my win probability?''} has a closed-form Monte-Carlo answer.
+In practice, players rarely use such tools at the table because the cost
+of manually entering every unit count into a web calculator outweighs
+the informational benefit.
+
+Our project closes that gap. A player takes a single, uncontrolled
+phone photograph of a contested territory; our system detects the
+plastic miniatures in the image, classifies each one by unit type and
+faction colour, and immediately returns (i)~a predicted win probability
+for the named attacker, (ii)~the optimal attacker force under two
+different IPC~budgets, and (iii)~a fully simulated battle with surviving
+unit counts on each side.
+
+\noindent\textbf{Contributions.}
+\begin{itemize}\setlength\itemsep{0pt}
+  \item An end-to-end pipeline from noisy board photo to tactical
+        recommendation, running live on CPU hardware.
+  \item An open-vocabulary detection front-end that requires no
+        domain-specific bounding-box annotations.
+  \item A fine-tuned ViT classifier for seven miniature unit types.
+  \item A learned MLP win-rate surrogate trained on simulator-generated
+        battle outcomes, paired with exhaustive IPC-budget search for
+        best-composition recommendations.
+  \item A deterministic rules-based combat simulator serving as both
+        a user tool and the training-data source for the MLP.
+\end{itemize}
+
+% [TEAM TODO] Insert the pipeline overview figure here.
+% Suggested content: phone photo → OWL-ViT detection boxes →
+% ViT crops → faction colour → unit counts modal →
+% three downstream outputs (win-rate bar / recommendation cards /
+% simulation result).  The right-hand half already exists as
+% docs/images/ui-states.png.
+%
+% \begin{figure}[t]
+%   \centering
+%   \includegraphics[width=\linewidth]{figures/pipeline_overview.pdf}
+%   \caption{End-to-end system overview. \ldots}
+%   \label{fig:pipeline}
+% \end{figure}
+
+% ============================================================
+\section{Related Work}
+\label{sec:related}
+
+\paragraph{Open-vocabulary object detection.}
+OWL-ViT~\cite{owlvit} introduced a ViT-based detector that accepts
+free-text category names at inference time, enabling localisation of
+arbitrary object classes without domain-specific training.
+We use the public \texttt{google/owlvit-large-patch14} checkpoint with
+seven natural-language prompts (\emph{``plastic military figurine toy''},
+\emph{``plastic tank toy''}, etc.).
+Related open-vocabulary detectors include Grounding
+DINO~\cite{groundingdino} and OWLv2~\cite{owlv2}; we chose
+OWL-ViT for its straightforward HuggingFace integration and reliable
+behaviour on small, overlapping figurines without fine-tuning.
+
+\paragraph{Vision Transformers for classification.}
+Dosovitskiy \emph{et al.}~\cite{vit} showed that pure self-attention
+backbones match or exceed CNNs when sufficiently pre-trained.
+We fine-tune \texttt{vit\_small\_patch16\_224} from \texttt{timm}~\cite{timm}
+on cropped unit images; the small model variant is CPU-friendly while
+retaining sufficient capacity for a 7-class problem.
+
+\paragraph{Game-state recognition from photographs.}
+LiveChess2FEN~\cite{livechess2fen} is the closest prior art: it
+classifies chess pieces in cropped squares from overhead photographs.
+Our task is harder — pieces are three-dimensional, stacked, and shot
+at oblique angles — but the core insight (detection then
+crop-classification) is the same.
+
+\paragraph{Surrogate models for combat outcomes.}
+Using a neural network to amortise repeated stochastic simulation is
+standard in game AI (AlphaZero~\cite{alphazero}).
+Our MLP is a minimal instance of the same idea: it learns
+$P(\text{attacker wins})$ as a scalar function of 16 unit-count inputs,
+replacing 10{,}000 Monte-Carlo rolls with a single forward pass.
+Existing hobbyist tools (\emph{AAOddsCalc}, \emph{TripleA} battle
+calculator) serve a similar purpose via direct simulation, but require
+manual data entry and offer no composition recommendation.
+
+% ============================================================
+\section{Data}
+\label{sec:data}
+
+Three datasets feed the system, each with different provenance.
+
+\paragraph{Real board photographs.}
+Thirteen JPG images in \texttt{app/backend/test/} were captured
+on a phone camera at actual play sessions under varying illumination
+and camera angles.
+These are held out from all training and used only for end-to-end
+evaluation.
+
+\paragraph{Cropped unit instances.}
+\red{[TEAM TODO] Report the number of labelled crops per class, the
+collection method (cropped from play photos / photographed
+individually / synthetic augmentation), and the train/val split used
+to fine-tune the ViT classifier.}
+The trained checkpoint (\texttt{vit\_classifier.pth}, 86.7 MB) is
+already committed to the repository.
+
+\paragraph{Simulator-generated battles.}
+The MLP win-rate model is trained on outcomes produced by our
+Monte-Carlo simulator, which implements the official A\&A combat
+rules (AA pre-fire, artillery support, tactical-bomber pairing).
+\red{[TEAM TODO] Report the number of simulated battles, the sampling
+distribution over IPC sizes and unit mixes, and the train/val split.}
+The trained checkpoint is \texttt{winrate\_model.pt} (1.4~MB).
+
+% [TEAM TODO] Add the data figure here.
+% Suggested content: grid of representative unit crops (8 classes,
+% both factions) plus one annotated board photo.
+% assets/annotated_cv_boxes_green.jpg can serve as the board photo panel.
+%
+% \begin{figure}[t]
+%   \centering
+%   \includegraphics[width=\linewidth]{figures/data_overview.pdf}
+%   \caption{(Left)~Sample OWL-ViT detections on a held-out board
+%            photo. (Right)~Representative crops across the eight unit
+%            classes.}
+%   \label{fig:data}
+% \end{figure}
+
+% ============================================================
+\section{Method}
+\label{sec:method}
+
+The system is a sequential pipeline of five stages
+(Figure~\ref{fig:method_placeholder}).
+
+\subsection{Detection (open-vocabulary)}
+\label{sec:detect}
+
+We query OWL-ViT large with seven natural-language prompts,
+one per attacker unit family; the AA-gun class is omitted because it
+is rare and visually similar to artillery.
+Detections below confidence $\tau{=}0.05$ are discarded; the remainder
+are passed through (a)~NMS at IoU $0.1$, (b)~a containment filter that
+removes boxes fully enclosed by a higher-scoring neighbour, and (c)~area
+and aspect-ratio sanity checks
+($0.001 \leq A_{\text{box}}/A_{\text{img}} \leq 0.4$,
+$\text{AR} \leq 10$).
+
+\subsection{Classification (fine-tuned ViT)}
+\label{sec:classify}
+
+Each surviving bounding box is cropped, resized to $224{\times}224$,
+and normalised with ImageNet statistics before being passed through
+a \texttt{vit\_small\_patch16\_224} backbone with a custom 7-way
+linear head.
+Predictions below confidence $0.7$ are discarded.
+
+\subsection{Faction Assignment (HSV heuristic)}
+\label{sec:faction}
+
+Each accepted crop is converted to HSV colour space.
+Pixels in the Japan-orange band
+($H\!\in\![5,20]$, $S\!\in\![100,255]$, $V\!\in\![100,255]$)
+and the USA-green band
+($H\!\in\![25,45]$, $S\!\in\![40,255]$, $V\!\in\![40,255]$)
+are counted; the piece is assigned to the faction with the
+larger count.
+This five-line OpenCV step needs no learnable parameters.
+
+\subsection{Win-Rate Prediction (MLP surrogate)}
+\label{sec:mlp}
+
+Unit counts for both factions are concatenated into a 16-dimensional
+vector (8 unit slots $\times$ 2 factions) and fed to a small MLP
+whose sigmoid output estimates $P(\text{attacker wins})$.
+\red{[TEAM TODO] Report MLP hidden widths, activation function,
+training optimiser, and learning rate.}
+
+\subsection{Best-Composition Recommendation}
+\label{sec:recommend}
+
+Given a fixed defender stack and budget $B$, we enumerate every
+attacker mix with total IPC cost $\leq B$.
+With unit costs in $\{3, 4, 4, 6, 10, 11, 12\}$ IPC and budgets
+in the low double digits, the candidate set is $O(10^4)$ per budget.
+Each candidate is scored by the MLP; the top-scoring mix is returned.
+The recommender runs twice per request: once at the attacker's current
+IPC, once at the defender's IPC.
+
+\subsection{Combat Simulation (rules-based)}
+\label{sec:sim}
+
+A deterministic simulator implements the official single-territory
+combat sequence: AA pre-fire, artillery support on paired infantry,
+tactical-bomber pairing bonus, repeated rounds until one side is
+eliminated.
+The RNG is seeded (\texttt{numpy.random.default\_rng(42)}) for
+reproducibility.
+The simulator serves both the \texttt{/simulate} endpoint and
+the win-rate MLP training.
+
+% Placeholder until the real pipeline figure is ready
+\begin{figure}[t]
+  \centering
+  \fbox{\parbox{0.9\linewidth}{\centering\vspace{1.5cm}
+    \textbf{[Figure placeholder]}\\
+    Pipeline diagram:\\
+    Photo $\to$ OWL-ViT $\to$ ViT $\to$ HSV $\to$ Counts $\to$
+    MLP / Recommender / Simulator
+    \vspace{1.5cm}}}
+  \caption{System pipeline. Replace this box with the architecture
+           diagram before final submission.}
+  \label{fig:method_placeholder}
+\end{figure}
+
+% ============================================================
+\section{Experiments}
+\label{sec:experiments}
+
+\subsection{Inference Profiling (complete)}
+\label{sec:profiling}
+
+We built a micro-benchmark script
+(\texttt{app/backend/bench\_inference.py}) and measured wall-clock
+time for each pipeline stage on a Windows CPU laptop
+(Table~\ref{tab:latency}).
+
+\begin{table}[h]
+\centering
+\small
+\caption{Per-stage CPU latency (Windows laptop, no GPU).}
+\label{tab:latency}
+\begin{tabular}{lrl}
+\toprule
+Stage & Latency & Notes \\
+\midrule
+OWL-ViT detection     & $\sim$5.0\,s   & Dominates \texttt{/analyze} \\
+ViT classification    & $\sim$130\,ms  & Sequential; 1.5$\times$ faster batched \\
+MLP single forward    & $\sim$0.28\,ms & Used by \texttt{/winrate} \\
+MLP batch (10\textsuperscript{4}) & $\sim$3.8\,ms & $\approx$700$\times$ speedup vs.\ current \\
+\texttt{find\_best\_attack} & $\sim$2.8\,s/budget & 2 budgets per \texttt{/recommend} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The dominant bottleneck in \texttt{/recommend} is sequential MLP calls
+inside \texttt{find\_best\_attack}; batching all candidates in a single
+forward pass would reduce this from $\sim$5.6\,s to $<$50\,ms.
+
+\subsection{\red{Detection Accuracy (planned)}}
+\red{We will hand-label bounding boxes on the 13 held-out board photos
+and report precision / recall at the operating threshold, together with
+a precision-recall curve and an ablation across OWL-ViT-base,
+OWL-ViT-large, and OWLv2.}
+
+\subsection{\red{Classifier Accuracy (planned)}}
+\red{We will report per-class top-1 accuracy, macro-F1, and a
+confusion matrix on a held-out crop set, highlighting likely
+error pairs (Tactical Bomber vs.\ Strategic Bomber; Mech vs.\ Infantry).}
+
+\subsection{\red{Win-Rate Calibration (planned)}}
+\red{For a uniform sample of IPC sizes $\in [5,50]$, we will compare
+MLP-predicted win rates against empirical frequencies over 10\textsuperscript{4}
+Monte-Carlo rolls, reporting MAE and a reliability diagram.}
+
+\subsection{\red{Recommendation Quality (planned)}}
+\red{For each held-out board photo, we will run \texttt{/recommend}
+and simulate 10\textsuperscript{3} battles for both the original and
+recommended attacker mix, reporting the win-rate delta and the
+fraction of cases where the recommendation strictly improves over the
+original.}
+
+% Placeholder for the experiments figure
+\begin{figure}[t]
+  \centering
+  \fbox{\parbox{0.9\linewidth}{\centering\vspace{1.8cm}
+    \textbf{[Figure placeholder]}\\
+    \red{2$\times$2 panel: detection P/R curve (top-left),
+    ViT confusion matrix (top-right),
+    MLP reliability diagram (bottom-left),
+    latency bar chart (bottom-right).}
+    \vspace{1.8cm}}}
+  \caption{\red{Experimental results. Replace with actual figures.}}
+  \label{fig:experiments}
+\end{figure}
+
+% ============================================================
+\section{Conclusion and Future Work}
+\label{sec:conclusion}
+
+We have demonstrated a functioning end-to-end pipeline that converts
+a phone photograph of a board-game position into three forms of
+tactical decision support.
+The perception and serving infrastructure are complete and verified
+across macOS, Linux, and Windows.
+Remaining work concentrates on (i)~quantitative evaluation of the
+individual pipeline stages, (ii)~batching the MLP search to reduce
+\texttt{/recommend} latency by $\sim$700$\times$, and (iii)~a user
+study comparing player decisions with and without the tool.
+
+% ============================================================
+{\small
+\bibliographystyle{ieee_fullname}
+\bibliography{references}
+}
+
+\end{document}
