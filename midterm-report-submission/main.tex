@@ -115,18 +115,13 @@ different IPC~budgets, and (iii)~a fully simulated battle with surviving
 unit counts on each side.
 
 \noindent\textbf{Contributions.}
-\begin{itemize}
-  \item An end-to-end pipeline from noisy board photo to tactical
-        recommendation, running live on CPU hardware.
-  \item An open-vocabulary detection front-end that requires no
-        domain-specific bounding-box annotations.
-  \item A fine-tuned ViT classifier for seven miniature unit types.
-  \item A learned MLP win-rate surrogate trained on simulator-generated
-        battle outcomes, paired with exhaustive IPC-budget search for
-        best-composition recommendations.
-  \item A deterministic rules-based combat simulator serving as both
-        a user tool and the training-data source for the MLP.
-\end{itemize}
+(i)~an end-to-end pipeline from noisy board photo to tactical
+recommendation, running on CPU; (ii)~open-vocabulary detection
+requiring no domain-specific bounding-box labels; (iii)~a
+fine-tuned ViT classifier for seven unit types; (iv)~an MLP
+win-rate surrogate paired with exhaustive IPC-budget search; and
+(v)~a deterministic rules-based combat simulator that doubles as
+the MLP's training-data generator.
 
 \begin{figure*}[t]
   \centering
@@ -170,52 +165,35 @@ unit counts on each side.
 \section{Related Work}
 \label{sec:related}
 
-\paragraph{Open-vocabulary object detection.}
-OWL-ViT~\cite{owlvit} introduced a ViT-based detector that accepts
-free-text category names at inference time, enabling localisation of
-arbitrary object classes without domain-specific training.
-We use the public \texttt{google/owlvit-large-patch14} checkpoint with
-seven natural-language prompts (\emph{``plastic military figurine toy''},
-\emph{``plastic tank toy''}, etc.).
-Related open-vocabulary detectors include Grounding
-DINO~\cite{groundingdino}, OWLv2~\cite{owlv2}, and the
-closed-vocabulary transformer baseline DETR~\cite{detr}.
-We chose OWL-ViT for its straightforward integration with the
-HuggingFace Transformers library~\cite{hftransformers} and reliable
-behaviour on small, overlapping figurines without fine-tuning.
-
-\paragraph{Vision Transformers for classification.}
-Dosovitskiy \emph{et al.}~\cite{vit} showed that pure self-attention
-backbones match or exceed CNNs when sufficiently pre-trained.
-We fine-tune \texttt{vit\_small\_patch16\_224} from \texttt{timm}~\cite{timm}
-on cropped unit images; the small model variant is CPU-friendly while
-retaining sufficient capacity for a 7-class problem.
+\paragraph{Open-vocabulary detection and ViT classification.}
+OWL-ViT~\cite{owlvit} accepts free-text category names at inference
+time, removing the need for domain-specific bounding-box training;
+alternatives include Grounding DINO~\cite{groundingdino},
+OWLv2~\cite{owlv2}, and the closed-vocabulary baseline
+DETR~\cite{detr}. We use \texttt{google/owlvit-large-patch14}
+through HuggingFace Transformers~\cite{hftransformers} for its
+reliability on small, overlapping figurines without fine-tuning.
+For classification we fine-tune
+\texttt{vit\_small\_patch16\_224}~\cite{vit} from \texttt{timm}~\cite{timm};
+the small variant is CPU-friendly and sufficient for a 7-class problem.
 
 \paragraph{Game-state recognition from photographs.}
-LiveChess2FEN~\cite{livechess2fen} is the closest prior art: it
-classifies chess pieces in cropped squares from overhead photographs.
-Our task is harder — pieces are three-dimensional, stacked, and shot
-at oblique angles — but the core insight (detection then
-crop-classification) is the same.
+LiveChess2FEN~\cite{livechess2fen} is the closest prior art,
+classifying chess pieces in cropped squares from overhead
+photographs. Our task is harder --- pieces are three-dimensional,
+stacked, and shot at oblique angles --- but the core insight
+(detection then crop-classification) is the same.
 
-\paragraph{Game AI via reinforcement learning.}
-Deep reinforcement learning agents trained by massive
-self-play~\cite{alphago,alphazero,alphastar} reach superhuman play on
-board and video games but require millions of episodes and produce
-opaque policies.
-We instead treat the published combat rules as a probabilistic oracle
-and distil that oracle into a small supervised win-rate predictor.
-This trades the ability to reason multi-turn for sample efficiency, CPU
-inference, and a prediction a player can sanity-check directly against
-the deterministic simulator.
-
-\paragraph{Surrogate models for combat outcomes.}
-Our MLP learns $P(\text{attacker wins})$ as a scalar function of
-$15$ unit-count inputs, replacing $2\,000$ Monte-Carlo rolls per
-query with a single forward pass.
-Existing hobbyist tools (\emph{AAOddsCalc}, \emph{TripleA} battle
-calculator) serve a similar purpose via direct simulation, but
-require manual data entry and offer no composition recommendation.
+\paragraph{Game AI: RL vs.\ surrogate distillation.}
+Self-play RL agents reach superhuman play on board and video
+games~\cite{alphago,alphazero,alphastar} but require millions of
+episodes and produce opaque policies. We instead distil the
+published combat rules into a small MLP that predicts
+$P(\text{attacker wins})$ in one forward pass, replacing
+$2\,000$ Monte-Carlo rolls per query. Existing hobbyist tools
+(\emph{AAOddsCalc}, \emph{TripleA}) serve a similar purpose via
+direct simulation but require manual data entry and offer no
+composition recommendation.
 
 % ============================================================
 \section{Data}
@@ -232,35 +210,25 @@ These are held out from all training and used only for end-to-end
 evaluation of the perception pipeline.
 
 \paragraph{Cropped unit instances.}
-A labelled set of cropped per-piece images was collected by the team
-and used to fine-tune \texttt{vit\_small\_patch16\_224} into the
-seven-way classifier.
-We confirm from the deployed checkpoint
-(\texttt{vit\_classifier.pth}, 86.7~MB; loaded with
-\texttt{pretrained=False} so all weights including the backbone come
-from training) that the entire model is fine-tuned, not just a fresh
-linear head; the seven attacker-class names are stored alongside the
-weights.
-\red{The exact per-class crop counts, collection protocol, and
-train/val split are not present in the public repository and will be
-reported in the final submission once the team confirms them from the
-training notebook.}
+A labelled set of cropped per-piece images was collected and used to
+fine-tune \texttt{vit\_small\_patch16\_224} end-to-end (the deployed
+\texttt{vit\_classifier.pth} loads with \texttt{pretrained=False},
+confirming that the backbone --- not just a linear head --- is
+trained).
+\red{Per-class crop counts, collection protocol, and train/val
+split are not in the public repository and will be reported in the
+final submission.}
 
 \paragraph{Simulator-generated battles.}
-The MLP win-rate model is trained on outcomes produced by our
-Monte-Carlo simulator, which implements the official A\&A combat
-rules (AA pre-fire, artillery support, tactical-bomber pairing).
-We generated $N\!=\!100\,000$ training samples by stratified sampling
-of unit-count ranges to balance small skirmishes (where the win-rate
-function changes sharply per added unit) against the larger battles a
-player is more likely to encounter:
-$40\%$ of samples have all unit counts drawn uniformly from $[0,3]$,
-$40\%$ from $[0,10]$, and $20\%$ from $[0,30]$.
-Each sample is a 15-dimensional unit-count vector; its label is the
-empirical attacker win rate over $B\!=\!2\,000$ simulator rollouts.
+We generated $N\!=\!100\,000$ training samples by stratified
+sampling of unit-count ranges --- $40\%/40\%/20\%$ uniform over
+$[0,3]/[0,10]/[0,30]$ --- to balance small skirmishes against the
+larger battles a player is more likely to encounter.
+Each sample is a 15-d unit-count vector; the label is the empirical
+attacker win rate over $B\!=\!2\,000$ simulator rollouts.
 The dataset is stored as a compressed NumPy~\cite{numpy} archive
-(\texttt{.npz}); the trained checkpoint is \texttt{winrate\_model.pt}
-($1.4$~MB).
+(\texttt{.npz}); the trained checkpoint is
+\texttt{winrate\_model.pt} ($1.4$~MB).
 
 \begin{figure}[t]
   \centering
@@ -278,31 +246,17 @@ The dataset is stored as a compressed NumPy~\cite{numpy} archive
 \section{Method}
 \label{sec:method}
 
-\paragraph{Scope refinement from the original proposal.}
-The project proposal framed perception as a single whole-board
-encoder (a Vision Transformer compared against a CNN baseline)
-producing a spatial feature map of the entire game state.
-During implementation we found that an \emph{open-vocabulary
-detector followed by per-piece classification} was both faster to
-develop and better suited to the available data: it requires no
-manual bounding-box annotation, generalises across board layouts and
-camera angles, and exposes intermediate unit counts that the user
-can audit and edit before downstream reasoning runs.
-We therefore pivoted the perception stage to the two-step pipeline
-described below; the proposed CNN-vs-ViT comparison is retained as a
-planned classifier-level ablation
-(Section~\ref{sec:planned-eval}).
-The downstream reasoning stack (Monte-Carlo simulator $\rightarrow$
-MLP win-rate predictor $\rightarrow$ composition recommender) is
-unchanged from the proposal; the proposed Bayesian linear-regression
-layer (Section~\ref{sec:blr}) has been prototyped offline as part of
-the feasibility study, but is not yet wired into the deployed
-\texttt{/recommend} path, which currently exhausts the MLP directly.
-A second smaller scope simplification is the choice of frontend
-technology: the proposal called for a React single-page app, but the
-deployed UI is a static HTML page that talks to the FastAPI backend
-directly; the React rewrite is treated as future engineering work and
-not as a research contribution.
+\paragraph{Scope refinement from the proposal.}
+The proposal framed perception as a whole-board ViT-vs-CNN encoder;
+we instead pivoted to open-vocabulary detection followed by
+per-piece classification, which removes the need for manual
+bounding-box annotation and exposes intermediate unit counts the
+user can audit before reasoning runs. The CNN-vs-ViT comparison is
+retained as a planned classifier ablation
+(Section~\ref{sec:planned-eval}). The downstream stack is
+unchanged, except that the proposed Bayesian linear-regression
+layer (Section~\ref{sec:blr}) has been prototyped but not yet wired
+into the deployed \texttt{/recommend} endpoint.
 
 The system is a sequential pipeline of five stages
 (Figure~\ref{fig:overview}) operating on the eight-class unit
@@ -365,113 +319,73 @@ Predictions below confidence $0.7$ are discarded.
 \subsection{Faction Assignment (HSV heuristic)}
 \label{sec:faction}
 
-Each accepted crop is converted to HSV colour space.
-Pixels in the Japan-orange band
-($H\!\in\![5,20]$, $S\!\in\![100,255]$, $V\!\in\![100,255]$)
-and the USA-green band
-($H\!\in\![25,45]$, $S\!\in\![40,255]$, $V\!\in\![40,255]$)
-are counted; the piece is assigned to the faction with the
-larger count.
-This five-line OpenCV~\cite{opencv} step needs no learnable
-parameters.
-Pieces in any other colour (UK, ANZAC, and China use distinct paint
-schemes in the full game) fall outside both HSV bands and are
-silently dropped, so the current system scope is Japan vs.\ United
-States combat only.
+Each crop is converted to HSV; pixels in the Japan-orange band
+($H\!\in\![5,20]$) or USA-green band ($H\!\in\![25,45]$) are
+counted and the piece is assigned to whichever has more.
+This five-line OpenCV~\cite{opencv} step is parameter-free.
+Pieces in other colours (UK, ANZAC, China) fall outside both bands
+and are dropped, so the current scope is JP vs.\ US only.
 
 \subsection{Win-Rate Prediction (MLP surrogate)}
 \label{sec:mlp}
 
-The 15-dimensional unit-count vector defined in
-Section~\ref{sec:method} is fed to a small MLP whose sigmoid output
-estimates $P(\text{attacker wins})$.
-The network has four fully-connected hidden layers
-(widths $256\!\to\!256\!\to\!128\!\to\!64$); the first three layers
-are followed by batch normalisation~\cite{batchnorm} and ReLU, the
-fourth by ReLU only, and a final \mbox{$64\!\to\!1$} linear head
-produces the logit.
-We train against binary cross-entropy with
-AdamW~\cite{adamw} (lr~$=\!10^{-4}$, weight decay $0.05$) for
-$70\,000$ training iterations
-on the simulator-generated dataset described in
-Section~\ref{sec:data}.
-Input features are standardised with training-set statistics that are
-saved alongside the weights, so inference uses identical
-normalisation.
+The 15-d unit-count vector is fed to an MLP with hidden widths
+$256\!\to\!256\!\to\!128\!\to\!64$ (BatchNorm~\cite{batchnorm} and
+ReLU after the first three layers), followed by a $64\!\to\!1$
+sigmoid head that estimates $P(\text{attacker wins})$. We train
+with AdamW~\cite{adamw} (lr~$=\!10^{-4}$, weight decay $0.05$,
+BCE loss) for $70\,000$ iterations on the simulator-generated
+dataset of Section~\ref{sec:data}; inputs are standardised with
+training-set statistics saved alongside the weights.
 
 \subsection{Best-Composition Recommendation}
 \label{sec:recommend}
 
-Given a fixed defender stack and budget $B$, we enumerate every
-attacker mix with total IPC cost $\leq B$.
-With unit costs in $\{3, 4, 4, 6, 10, 11, 12\}$ IPC and budgets
-in the low double digits, the candidate set is $O(10^4)$ per budget.
-The deployed implementation scores each candidate with a separate
-forward pass through the MLP, which is the dominant latency cost in
-\texttt{/recommend} (Section~\ref{sec:profiling}); the top-scoring
-mix is returned.
-The recommender runs twice per request, at two semantically distinct
-budgets: once at the \emph{attacker's} own IPC value (answering
-\emph{``what should I have brought to this fight for the same money?''})
-and once at the \emph{defender's} IPC value
-(\emph{``if I matched their investment, what is optimal against this
-stack?''}).
+Given a fixed defender and budget $B$, we enumerate every attacker
+mix with total IPC $\leq B$ ($O(10^{4})$ candidates per budget) and
+score each with a separate MLP forward pass --- the dominant
+latency cost in \texttt{/recommend}
+(Section~\ref{sec:profiling}). The recommender runs twice: once at
+the attacker's own IPC value (``what should I have brought?'') and
+once at the defender's (``what is optimal at their investment
+level?'').
 
 \subsection{Bayesian Composition Ranking (prototyped, not deployed)}
 \label{sec:blr}
 
-The deployed recommender exhausts the MLP and returns a single
-top-scoring mix as a point estimate.
-To provide \emph{calibrated} ranking with explicit uncertainty, in the
-spirit of weight-uncertainty work for neural
-networks~\cite{blundell2015weight}, we have additionally prototyped a
-Bayesian linear regression (BLR) head distilled from the trained MLP.
-The BLR operates on a hand-crafted $28$-dimensional feature map of
-unit counts, force ratios, and pairwise unit-interaction terms; it is
-fit online from sufficient statistics, so that adding samples does not
-require re-training, and its posterior over compositions is sampled by
-Monte Carlo to produce an upper-confidence acquisition score.
-On a held-out evaluation set the BLR matches MLP accuracy while running
-in $<\!1\,$ms per query on CPU, which lowers the cost of recommendation
-search from the MLP-direct baseline ($\sim\!10^{4}$ exhaustive
-evaluations, $\sim\!5.6\,$s per budget; see
-Section~\ref{sec:profiling}) to evaluating $N\!=\!8\,000$ sampled
-candidate mixes in well under one second.
-\red{The remaining work --- swapping the BLR into the FastAPI
-\texttt{/recommend} endpoint in place of the MLP-direct exhaustive
-search, and reporting calibration of the upper-confidence ranking on
-the held-out board photos --- is the headline modelling deliverable
-for the final submission.}
+For calibrated ranking with explicit uncertainty in the spirit
+of~\cite{blundell2015weight}, we have additionally prototyped a
+Bayesian linear regression (BLR) head distilled from the MLP, on a
+hand-crafted 28-d feature map of counts, force ratios, and pairwise
+interactions. It is fit online from sufficient statistics, with the
+posterior sampled by Monte Carlo to produce an upper-confidence
+acquisition score. On the held-out set it matches MLP accuracy
+while running in $<\!1$\,ms per query, evaluating $N\!=\!8\,000$
+candidate mixes in under one second versus the $\sim\!5.6$\,s
+MLP-direct baseline.
+\red{Wiring the BLR into \texttt{/recommend} in place of the
+MLP-direct search is the headline modelling deliverable for the
+final report.}
 
 \subsection{Combat Simulation (rules-based)}
 \label{sec:sim}
 
-A deterministic simulator implements the official single-territory
-combat sequence in three phases.
-\emph{(i)~AA fire} occurs once at the start: each defending AA gun
-rolls up to three shots (capped at the number of attacking aircraft)
-at $1/6$ to hit, with casualties drawn from fighters, then tactical
-bombers, then strategic bombers.
-\emph{(ii)~Combat rounds} repeat until one side is wiped: both sides
-roll simultaneously at the attack/defence values in
-Table~\ref{tab:units}; artillery upgrades paired infantry from $1$
-to $2$, and a tactical bomber gains $+1$ when accompanied by a
-fighter or tank.
-Casualties are applied land-first then air in the order
-infantry $\to$ artillery $\to$ tank $\to$ fighter $\to$ tac bomber
-$\to$ strategic bomber, with mechanised infantry merged into the
-infantry pool for casualty selection and split back out for the
-survivor report.
-\emph{(iii)~Termination} occurs when one side has no remaining land
-or air units.
-The RNG is seeded (\texttt{numpy.random.default\_rng(42)}) for
-reproducibility.
-The simulator is fully vectorised in NumPy~\cite{numpy} and processes
-$B\!=\!2\,000$ parallel battles per call, which is what makes the
-$100\,000$-sample MLP training set tractable on CPU.
-It serves both the user-facing \texttt{/simulate} endpoint
-(single-battle deterministic mode) and the win-rate MLP's training-data
-generator (high-throughput batched mode).
+A deterministic simulator implements the official combat sequence:
+\emph{(i)} one round of AA pre-fire (each AA rolls up to three shots
+at $1/6$, capped by attacker aircraft; casualties hit
+Fighter\,$\to$\,TacBmb\,$\to$\,StrBmb);
+\emph{(ii)} simultaneous combat rounds at the attack/defence values
+of Table~\ref{tab:units}, with artillery boosting paired infantry
+from $1$ to $2$ and a TacBmb $+1$ when accompanied by a Fighter or
+Tank, casualties applied land-first-then-air
+(infantry\,$\to$\,art\,$\to$\,tank\,$\to$\,ftr\,$\to$\,tac\,$\to$\,str)
+and Mech merged into infantry for selection;
+\emph{(iii)} termination when one side has no remaining land or air
+units.
+The simulator is vectorised in NumPy~\cite{numpy} ($B\!=\!2\,000$
+parallel battles per call, RNG seeded for reproducibility) and
+serves both \texttt{/simulate} and the MLP's training-data
+generator.
 
 \begin{figure}[t]
   \centering
@@ -515,62 +429,41 @@ MLP batch (10\textsuperscript{4}) & $\sim$3.8\,ms & $\approx$700$\times$ MLP-onl
 \end{tabular}
 \end{table}
 
-The dominant bottleneck in \texttt{/recommend} is the sequential MLP
-calls inside \texttt{find\_best\_attack}.
-At the network level, batching all $10^{4}$ candidates into a single
-forward pass shrinks the MLP-only cost from $\sim\!2.8$~s to
-$\sim\!3.8$~ms (a $\sim\!700{\times}$ kernel-level speed-up); at the
-endpoint level the user-visible \texttt{/recommend} call drops from
-$\sim\!5.6$~s to under $50$~ms (a $\sim\!112{\times}$ wall-clock
-improvement) once the surrounding two-budget loop is included.
-Beyond this single fix, our profiling work also identifies a
-prioritised optimisation roadmap covering OWL-ViT text-embedding
-caching across requests, input-image downscaling before detection,
-batched ViT classification of all crops in a single forward, and
-\texttt{asyncio} offload of the synchronous \texttt{/analyze} pipeline
-so the FastAPI event loop is not blocked for the full inference
-window.
-We treat that roadmap as an engineering output of the midterm in its
-own right; concrete before/after numbers will appear in the final
-report.
+The dominant bottleneck in \texttt{/recommend} is the sequential
+MLP calls in \texttt{find\_best\_attack}: batching all $10^{4}$
+candidates into one forward pass shrinks the MLP-only cost from
+$\sim\!2.8$\,s to $\sim\!3.8$\,ms ($\sim\!700{\times}$ kernel
+speed-up; $\sim\!112{\times}$ wall-clock when the two-budget loop
+is included). The same profiling identifies further opportunities
+--- OWL-ViT text-embedding caching, input downscaling before
+detection, batched ViT classification, and \texttt{asyncio}
+offload of the synchronous \texttt{/analyze} path --- with
+before/after numbers planned for the final report.
 
 \subsection{Planned Evaluations \planned}
 \label{sec:planned-eval}
-\red{Four further evaluations remain for the final submission, all
-sharing the same protocol (compute the metric on the held-out
-\texttt{app/backend/test/} photographs and crops, then report
-alongside the calibration numbers above).
-\textbf{Detection accuracy}: hand-label bounding boxes on the
-$13$~held-out board photos and report
-precision / recall at the operating threshold $\tau\!=\!0.05$,
-plus a precision-recall curve and an ablation across OWL-ViT-base,
-OWL-ViT-large, and OWLv2~\cite{owlv2}.
-\textbf{Classifier accuracy}: per-class top-1 accuracy, macro-F1, and
-a confusion matrix on a held-out crop set, highlighting the likely
-error pairs (TacBmb vs.\ StrBmb; Mech vs.\ Infantry).
-\textbf{CNN vs.\ ViT ablation} (per the original proposal): train a
-ResNet-18 baseline on the same crops and compare top-1 accuracy,
-parameter count, and CPU latency.
-\textbf{Recommendation quality}: for each held-out board, run
-\texttt{/recommend} and simulate $10^{3}$ battles for both the
-original and recommended attacker mix, reporting the win-rate delta
-and the fraction of cases where the recommendation strictly improves
-over the original.}
+\red{Four further evaluations remain for the final submission.
+\textbf{Detection accuracy}: hand-labelled boxes on the $13$
+held-out photos $\to$ P/R curve and an ablation across
+OWL-ViT-base, OWL-ViT-large, and OWLv2~\cite{owlv2}.
+\textbf{Classifier accuracy}: per-class top-1, macro-F1, and a
+confusion matrix on held-out crops.
+\textbf{CNN vs.\ ViT ablation} (per the proposal): a ResNet-18
+baseline on the same crops, compared on accuracy, parameter count,
+and CPU latency.
+\textbf{Recommendation quality}: for each held-out board, simulate
+$10^{3}$ battles for the original and recommended mixes and report
+the win-rate delta and improvement fraction.}
 
 \subsection{Win-Rate Calibration (preliminary)}
 \label{sec:winrate-calib}
-We evaluated the trained MLP on $500$ held-out battle scenarios drawn
-from the same stratified distribution as the training set, using
-$5\!\times\!10^{4}$ simulator rollouts per scenario as the ground-truth
-win rate.
-The mean absolute error is $\mathrm{MAE} = 0.0034$, i.e., the model
-deviates from the simulator by roughly $0.34$ percentage points on
-average across the test set.
-Table~\ref{tab:mlp-rep} reports four representative scenarios spanning
-small / balanced / asymmetric force compositions; in each case the
-MLP tracks the simulator within half a percentage point.
-\red{A reliability diagram and per-stratum breakdown
-($[0,3]$ vs.\ $[0,10]$ vs.\ $[0,30]$) will appear in the final report.}
+On $500$ held-out scenarios with $5\!\times\!10^{4}$ rollouts each
+as ground truth, the MLP achieves $\mathrm{MAE} = 0.0034$
+(\emph{i.e.}, $\sim\!0.34$ percentage points). Four representative
+cases (Table~\ref{tab:mlp-rep}) all track the simulator within half
+a percentage point.
+\red{A reliability diagram and per-stratum breakdown will appear in
+the final report.}
 
 \begin{table}[h]
 \centering\small
@@ -622,38 +515,21 @@ production \texttt{/recommend} path in place of MLP-direct exhaustive
 search, and (iv)~a user study comparing player decisions with and
 without the tool.}
 
-\paragraph{What we built vs.\ what we leveraged.}
-The OWL-ViT detector~\cite{owlvit} weights and the
-\texttt{transformers} library~\cite{hftransformers} are used unchanged
-from public releases; the ViT-Small backbone is the unmodified
-\texttt{vit\_small\_patch16\_224} from \texttt{timm}~\cite{timm}, with
-only the seven-class linear head, the seven OWL-ViT text prompts, and
-the fine-tuning recipe being ours.
-Every other component --- the HSV faction-colour heuristic, the
-win-rate MLP architecture and its training pipeline, the rules-based
-combat simulator, the exhaustive IPC-budget recommender, the FastAPI
-service, and the static HTML frontend --- was implemented from scratch
-in this project.
-
-\paragraph{Engineering effort beyond modelling.}
-Three pieces of system work are claimed for credit alongside the
-modelling.
-First, a two-phase setup audit on a clean Windows host produced a
-README rewrite, surfaced three dependencies missing from
-\texttt{requirements.txt} (\texttt{transformers},
-\texttt{python-multipart}, \texttt{matplotlib}), and identified two
-runtime bugs in the existing code base
-(defender-Mech survivor accounting in the combat simulator and an
-\texttt{AA}-field omission in the \texttt{/recommend} payload).
-Second, a microbenchmark harness was written from scratch to
-characterise per-stage CPU latency
-(Table~\ref{tab:latency}); it both isolated the
-\texttt{find\_best\_attack} bottleneck and quantified the headroom
-available from batching.
-Third, a UX audit captured all six dynamic frontend states under
-headless Edge and produced a prioritised list of seventeen
-friction-and-gap items, including the \texttt{file://} CORS issue
-that originally blocked first-time users from completing an upload.
+\paragraph{Attribution.}
+We use OWL-ViT~\cite{owlvit} weights, the \texttt{transformers}
+library~\cite{hftransformers}, and the unmodified
+\texttt{vit\_small\_patch16\_224} from \texttt{timm}~\cite{timm} as
+released; everything else --- the HSV faction heuristic, the
+win-rate MLP and its training pipeline, the rules-based combat
+simulator, the recommender, the FastAPI service, and the static
+HTML frontend --- is implemented from scratch.
+A setup audit on a clean Windows host produced the README rewrite,
+surfaced three missing \texttt{requirements.txt} entries, and
+identified two simulator/recommender bugs; the microbenchmark
+harness behind Table~\ref{tab:latency} isolated the
+\texttt{find\_best\_attack} bottleneck; a UX audit catalogued
+seventeen frontend friction items including the original
+\texttt{file://} CORS blocker.
 
 % ============================================================
 {\small
