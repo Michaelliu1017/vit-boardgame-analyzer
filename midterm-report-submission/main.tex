@@ -512,15 +512,19 @@ Scenario & Simulator & MLP \\
   \centering
   \includegraphics[width=0.85\linewidth]{figures/application_screenshot.png}
   \caption{End-to-end system output captured against the deployed
-    FastAPI backend at \texttt{http://localhost:8000/}. Combat
-    Simulation mode (Section~\ref{sec:sim}) is active: an uploaded
-    board photograph (Japan in orange, United States in green) has
-    been processed through detection
+    FastAPI backend at \texttt{http://localhost:8000/}, with Best
+    Composition mode (Section~\ref{sec:recommend}) active. An
+    uploaded board photograph (Japan in orange, United States in
+    green) is processed through detection
     (Section~\ref{sec:detect}), classification
-    (Section~\ref{sec:classify}), and faction assignment
-    (Section~\ref{sec:faction}), then routed to the rules-based
-    simulator which reports the winning side and the per-unit
-    survivor counts on each side.}
+    (Section~\ref{sec:classify}), and HSV faction assignment
+    (Section~\ref{sec:faction}) into unit counts. The MLP win-rate
+    surrogate (Section~\ref{sec:mlp}) reports a current US-attacking
+    win rate of $24.7\%$, and the recommender returns the
+    highest-win-rate attacker mix at both the attacker's own budget
+    ($95.7\%$ at $38$~IPC: 6 Infantry $+$ 5 Artillery) and the
+    defender's budget ($20.4\%$ at $22$~IPC: 2 Infantry $+$ 4
+    Artillery).}
   \label{fig:experiments}
 \end{figure}
 
