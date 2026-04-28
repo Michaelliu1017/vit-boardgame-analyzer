@@ -1,5 +1,6 @@
 # main.py
 import io
+from pathlib import Path
 import torch
 import torch.nn as nn
 import timm
@@ -7,6 +8,8 @@ import numpy as np
 from PIL import Image
 from fastapi import FastAPI, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
 from pipeline import (
@@ -22,6 +25,12 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+_FRONTEND = Path(__file__).parent.parent / "frontend"
+
+@app.get("/", include_in_schema=False)
+def serve_ui():
+    return FileResponse(_FRONTEND / "index.html")
 
 DEVICE = torch.device(
     'mps' if torch.backends.mps.is_available()
