@@ -93,6 +93,19 @@ final submission.}
 \section{Introduction}
 \label{sec:intro}
 
+\begin{figure}[t!]
+  \centering
+  \includegraphics[width=\linewidth]{figures/battlefield_detection.png}
+  \caption{End-to-end perception output on a held-out board
+    photograph. Each box is a high-confidence OWL-ViT detection
+    (Section~\ref{sec:detect}) annotated with the ViT-predicted
+    unit class (Section~\ref{sec:classify}) and faction
+    (Section~\ref{sec:faction}; JP in orange, US in green); the
+    numbering reflects the order in which detections survive NMS
+    and the containment filter.}
+  \label{fig:method_detection}
+\end{figure}
+
 \emph{Axis \& Allies Pacific 1940} is a hex-and-counter war game whose
 combat resolution is fully governed by published probability tables:
 each unit type attacks and defends on a fixed dice value, casualties
@@ -400,19 +413,6 @@ parallel battles per call, RNG seeded for reproducibility) and
 serves both \texttt{/simulate} and the MLP's training-data
 generator.
 
-\begin{figure}[t]
-  \centering
-  \includegraphics[width=\linewidth]{figures/battlefield_detection.png}
-  \caption{End-to-end perception output on a held-out board
-    photograph. Each box is a high-confidence OWL-ViT detection
-    (Section~\ref{sec:detect}) annotated with the ViT-predicted
-    unit class (Section~\ref{sec:classify}) and faction
-    (Section~\ref{sec:faction}; JP in orange, US in green); the
-    numbering reflects the order in which detections survive NMS
-    and the containment filter.}
-  \label{fig:method_detection}
-\end{figure}
-
 % ============================================================
 \section{Experiments}
 \label{sec:experiments}
@@ -496,7 +496,7 @@ Scenario & Simulator & MLP \\
 
 \begin{figure}[t]
   \centering
-  \includegraphics[width=\linewidth]{figures/ui_states.png}
+  \includegraphics[width=0.5\linewidth]{figures/ui_states.png}
   \caption{End-to-end system output captured against the deployed
     FastAPI backend. Top: the confirm-units modal that follows
     \texttt{/analyze}. Middle row, left to right: the
