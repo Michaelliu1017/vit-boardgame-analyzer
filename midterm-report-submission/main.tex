@@ -270,8 +270,9 @@ vocabulary in Table~\ref{tab:units}, which encodes the official cost
 and dice statistics from the rulebook.
 Of the eight unit types, seven appear on the attacking side; the
 anti-aircraft (\textsc{aa}) gun is defender-only by the rules.
-Detection and classification therefore work over the seven
-attacker-eligible classes, while the simulator and MLP both consume
+The ViT classifier therefore covers the seven attacker-eligible
+classes (detection itself is class-agnostic; see
+Section~\ref{sec:detect}), while the simulator and MLP both consume
 the full eight-class vocabulary --- which is why the MLP input vector
 is fifteen-dimensional (seven attacker counts plus all eight defender
 counts).
@@ -298,18 +299,22 @@ Code & Unit & IPC & Atk\,/\,Def \\
 \end{tabular}
 \end{table}
 
-\subsection{Detection (open-vocabulary)}
+\subsection{Detection (open-vocabulary, class-agnostic)}
 \label{sec:detect}
 
-We query OWL-ViT large with seven natural-language prompts, one per
-attacker unit family; \textsc{aa} guns are omitted because the rules
-forbid the attacker from bringing them, so on a typical board
-photograph they are present only on the defending side and do not
-need a dedicated detection class.
-Detections below confidence $\tau{=}0.05$ are discarded; the remainder
-are passed through (a)~NMS at IoU $0.1$, (b)~a containment filter that
-removes boxes fully enclosed by a higher-scoring neighbour, and (c)~area
-and aspect-ratio sanity checks
+OWL-ViT is used purely as a class-agnostic \emph{localiser}: we
+query the model with a single fixed list of seven broad text prompts
+(\emph{``plastic military figurine toy''}, \emph{``plastic tank
+toy''}, \emph{``plastic artillery toy''}, $\ldots$) chosen for high
+recall on the visual classes of plastic pieces, and discard the
+per-prompt labels after post-processing.
+Only the bounding boxes are passed downstream; the unit class is
+assigned later by the ViT classifier of
+Section~\ref{sec:classify}.
+Detections below confidence $\tau{=}0.05$ are discarded; the
+remainder are passed through (a)~NMS at IoU $0.1$, (b)~a containment
+filter that removes boxes fully enclosed by a higher-scoring
+neighbour, and (c)~area and aspect-ratio sanity checks
 ($0.001 \leq A_{\text{box}}/A_{\text{img}} \leq 0.4$,
 $\text{AR} \leq 10$).
 
