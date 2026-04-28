@@ -220,6 +220,26 @@ The trained checkpoint is \texttt{winrate\_model.pt} (1.4~MB).
 \section{Method}
 \label{sec:method}
 
+\paragraph{Scope refinement from the original proposal.}
+The project proposal framed perception as a single whole-board
+encoder (a Vision Transformer compared against a CNN baseline)
+producing a spatial feature map of the entire game state.
+During implementation we found that an \emph{open-vocabulary
+detector followed by per-piece classification} was both faster to
+develop and better suited to the available data: it requires no
+manual bounding-box annotation, generalises across board layouts and
+camera angles, and exposes intermediate unit counts that the user
+can audit and edit before downstream reasoning runs.
+We therefore pivoted the perception stage to the two-step pipeline
+described below; the proposed CNN-vs-ViT comparison is retained as a
+planned classifier-level ablation
+(Section~\ref{sec:cnn-vs-vit-ablation}).
+The downstream reasoning stack (Monte-Carlo simulator $\rightarrow$
+MLP win-rate predictor $\rightarrow$ composition recommender) is
+unchanged from the proposal, except that the proposed Bayesian
+linear-regression layer for uncertainty-aware ranking
+(Section~\ref{sec:blr}) is \red{deferred to the final submission}.
+
 The system is a sequential pipeline of five stages
 (Figure~\ref{fig:method_placeholder}).
 
@@ -276,6 +296,26 @@ in the low double digits, the candidate set is $O(10^4)$ per budget.
 Each candidate is scored by the MLP; the top-scoring mix is returned.
 The recommender runs twice per request: once at the attacker's current
 IPC, once at the defender's IPC.
+
+\subsection{\red{Bayesian Composition Ranking (planned)}}
+\label{sec:blr}
+
+\red{The current recommender returns the single MLP-top mix,
+which gives a point estimate but no notion of confidence — and
+the simulator-generated training distribution is necessarily sparse
+in regions of the composition space that human players visit
+rarely.
+The proposal called for a Bayesian linear regression on top of the
+MLP's penultimate-layer features to provide \emph{calibrated}
+ranking with explicit uncertainty in the spirit of weight-uncertainty
+work for neural networks~\cite{blundell2015weight}.
+We plan to distil the trained MLP into a BLR head and re-rank
+exhaustive-search candidates by an upper-confidence acquisition
+score, so that recommendations explicitly avoid overconfident
+extrapolation into composition regions sparsely covered by the
+simulator dataset.
+This is the largest unimplemented item from the proposal and is
+prioritised for the final report.}
 
 \subsection{Combat Simulation (rules-based)}
 \label{sec:sim}
@@ -347,6 +387,15 @@ OWL-ViT-large, and OWLv2.}
 \red{We will report per-class top-1 accuracy, macro-F1, and a
 confusion matrix on a held-out crop set, highlighting likely
 error pairs (Tactical Bomber vs.\ Strategic Bomber; Mech vs.\ Infantry).}
+
+\subsection{\red{CNN vs.\ ViT Ablation (planned)}}
+\label{sec:cnn-vs-vit-ablation}
+\red{Per the original proposal, we will train a small CNN baseline
+(ResNet-18) on the same cropped-piece dataset used for the ViT and
+compare top-1 accuracy, parameter count, and CPU inference latency.
+Our hypothesis is that the ViT-Small generalises slightly better at
+this dataset scale but the CNN remains competitive on
+inference-only cost.}
 
 \subsection{\red{Win-Rate Calibration (planned)}}
 \red{For a uniform sample of IPC sizes $\in [5,50]$, we will compare
