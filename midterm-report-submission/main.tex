@@ -508,18 +508,21 @@ Scenario & Simulator & MLP \\
 \end{tabular}
 \end{table}
 
-% [TEAM TODO] App screenshot from running FastAPI backend will go
-% here as fig:experiments.  Drop the file at
-% figures/app_screenshot.png and the figure block below will be
-% un-commented in the next edit.
-%
-% \begin{figure}[t]
-%   \centering
-%   \includegraphics[width=0.6\linewidth]{figures/app_screenshot.png}
-%   \caption{End-to-end system output captured against the deployed
-%     FastAPI backend at \texttt{http://localhost:8000/}.}
-%   \label{fig:experiments}
-% \end{figure}
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=0.85\linewidth]{figures/application_screenshot.png}
+  \caption{End-to-end system output captured against the deployed
+    FastAPI backend at \texttt{http://localhost:8000/}. Combat
+    Simulation mode (Section~\ref{sec:sim}) is active: an uploaded
+    board photograph (Japan in orange, United States in green) has
+    been processed through detection
+    (Section~\ref{sec:detect}), classification
+    (Section~\ref{sec:classify}), and faction assignment
+    (Section~\ref{sec:faction}), then routed to the rules-based
+    simulator which reports the winning side and the per-unit
+    survivor counts on each side.}
+  \label{fig:experiments}
+\end{figure}
 
 % ============================================================
 \section{Conclusion and Future Work}
