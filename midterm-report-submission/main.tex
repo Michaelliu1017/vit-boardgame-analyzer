@@ -84,10 +84,9 @@ Monte-Carlo simulator to within $0.34$ percentage points
 rollouts each); a Bayesian linear-regression head distilled from the
 MLP has additionally been prototyped for calibrated composition
 ranking.
-\red{Quantitative evaluation of detection precision/recall and
-classifier accuracy on the held-out board photographs is ongoing and
-will be reported in the final submission, alongside production
-integration of the BLR ranker.}
+\red{Quantitative evaluation of detection and classification on the
+held-out board photographs is ongoing and will be reported in the
+final submission.}
 \end{abstract}
 
 % ============================================================
@@ -257,12 +256,15 @@ The proposal framed perception as a whole-board ViT-vs-CNN encoder;
 we instead pivoted to open-vocabulary detection followed by
 per-piece classification, which removes the need for manual
 bounding-box annotation and exposes intermediate unit counts the
-user can audit before reasoning runs. The CNN-vs-ViT comparison is
-retained as a planned classifier ablation
-(Section~\ref{sec:planned-eval}). The downstream stack is
-unchanged, except that the proposed Bayesian linear-regression
-layer (Section~\ref{sec:blr}) has been prototyped but not yet wired
-into the deployed \texttt{/recommend} endpoint.
+user can audit before reasoning runs. The pivot keeps the
+proposal's ``transformer for visual game-state'' hypothesis at the
+per-piece level (OWL-ViT detector $+$ ViT-Small classifier) rather
+than the whole-board level; we therefore do not separately train a
+CNN baseline. The downstream stack is unchanged, with the proposed
+Bayesian linear-regression layer (Section~\ref{sec:blr}) prototyped
+in isolation. The originally proposed React frontend was
+implemented as a static HTML$+$JS page since the feature set did
+not justify the framework.
 
 The system is a sequential pipeline of five stages
 (Figure~\ref{fig:overview}) operating on the eight-class unit
@@ -375,9 +377,8 @@ acquisition score. On the held-out set it matches MLP accuracy
 while running in $<\!1$\,ms per query, evaluating $N\!=\!8\,000$
 candidate mixes in under one second versus the $\sim\!5.6$\,s
 MLP-direct baseline.
-\red{Wiring the BLR into \texttt{/recommend} in place of the
-MLP-direct search is the headline modelling deliverable for the
-final report.}
+\red{Production integration into \texttt{/recommend} remains as
+future work beyond the final-report timeline.}
 
 \subsection{Combat Simulation (rules-based)}
 \label{sec:sim}
@@ -448,26 +449,24 @@ MLP calls in \texttt{find\_best\_attack}: batching all $10^{4}$
 candidates into one forward pass shrinks the MLP-only cost from
 $\sim\!2.8$\,s to $\sim\!3.8$\,ms ($\sim\!700{\times}$ kernel
 speed-up; $\sim\!112{\times}$ wall-clock when the two-budget loop
-is included). The same profiling identifies further opportunities
---- OWL-ViT text-embedding caching, input downscaling before
-detection, batched ViT classification, and \texttt{asyncio}
-offload of the synchronous \texttt{/analyze} path --- with
-before/after numbers planned for the final report.
+is included). The same profiling identifies further engineering opportunities
+(OWL-ViT text-embedding caching, input downscaling, batched ViT
+classification, and \texttt{asyncio} offload of \texttt{/analyze})
+which are out of scope for this submission.
 
 \subsection{Planned Evaluations \planned}
 \label{sec:planned-eval}
-\red{Four further evaluations remain for the final submission.
-\textbf{Detection accuracy}: hand-labelled boxes on the $13$
-held-out photos $\to$ P/R curve and an ablation across
-OWL-ViT-base, OWL-ViT-large, and OWLv2~\cite{owlv2}.
-\textbf{Classifier accuracy}: per-class top-1, macro-F1, and a
-confusion matrix on held-out crops.
-\textbf{CNN vs.\ ViT ablation} (per the proposal): a ResNet-18
-baseline on the same crops, compared on accuracy, parameter count,
-and CPU latency.
-\textbf{Recommendation quality}: for each held-out board, simulate
-$10^{3}$ battles for the original and recommended mixes and report
-the win-rate delta and improvement fraction.}
+\red{Two evaluations remain for the final submission.
+\textbf{Perception accuracy on held-out photos}: a single
+hand-labelling pass over the $13$ photos yields detection
+precision/recall against OWL-ViT output and per-class top-1 plus a
+confusion matrix on the predicted ViT classes.
+\textbf{Recommendation quality}: for each held-out board we
+simulate $10^{3}$ battles for the originally fielded mix and the
+system's recommended mix at the same IPC budget, and report the
+mean win-rate delta and the fraction of boards on which the
+recommendation strictly improves. This experiment also discharges
+the end-to-end evaluation promised in the feasibility report.}
 
 \subsection{Win-Rate Calibration (preliminary)}
 \label{sec:winrate-calib}
@@ -476,8 +475,6 @@ as ground truth, the MLP achieves $\mathrm{MAE} = 0.0034$
 (\emph{i.e.}, $\sim\!0.34$ percentage points). Four representative
 cases (Table~\ref{tab:mlp-rep}) all track the simulator within half
 a percentage point.
-\red{A reliability diagram and per-stratum breakdown will appear in
-the final report.}
 
 \begin{table}[t]
 \centering\small
@@ -522,13 +519,12 @@ decision support.
 The perception and serving infrastructure are complete and verified
 across macOS, Linux, and Windows.
 \red{Remaining work concentrates on (i)~quantitative evaluation of
-the individual perception stages on the held-out board photographs,
-(ii)~batching the MLP scoring loop to bring \texttt{/recommend} from
-$\sim$5.6\,s to under $50$\,ms ($\sim\!112{\times}$ user-visible
-speed-up), (iii)~swapping the prototyped BLR ranker into the
-production \texttt{/recommend} path in place of MLP-direct exhaustive
-search, and (iv)~a user study comparing player decisions with and
-without the tool.}
+the perception pipeline on the $13$ held-out photos, and
+(ii)~empirical validation of \texttt{/recommend} by simulating
+$10^{3}$ battles for original and recommended mixes on each board.
+Production integration of the BLR prototype and further inference
+batching are noted as longer-term engineering work beyond the
+final-report timeline.}
 
 \paragraph{Attribution.}
 We use OWL-ViT~\cite{owlvit} weights, the \texttt{transformers}
