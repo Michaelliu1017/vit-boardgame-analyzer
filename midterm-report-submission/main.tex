@@ -179,15 +179,13 @@ the MLP's training-data generator.
 
 \paragraph{Open-vocabulary detection and ViT classification.}
 OWL-ViT~\cite{owlvit} accepts free-text category names at inference
-time, removing the need for domain-specific bounding-box training;
-alternatives include Grounding DINO~\cite{groundingdino},
-OWLv2~\cite{owlv2}, and the closed-vocabulary baseline
-DETR~\cite{detr}. We use \texttt{google/owlvit-large-patch14}
-through HuggingFace Transformers~\cite{hftransformers} for its
-reliability on small, overlapping figurines without fine-tuning.
-For classification we fine-tune
+time, removing the need for domain-specific bounding-box training.
+We use \texttt{google/owlvit-large-patch14} through HuggingFace
+Transformers for its reliability on small, overlapping figurines
+without fine-tuning. For classification we fine-tune
 \texttt{vit\_small\_patch16\_224}~\cite{vit} from \texttt{timm}~\cite{timm};
-the small variant is CPU-friendly and sufficient for a 7-class problem.
+the small variant is CPU-friendly and sufficient for a 7-class
+problem.
 
 \paragraph{Game-state recognition from photographs.}
 LiveChess2FEN~\cite{livechess2fen} is the closest prior art,
@@ -198,7 +196,7 @@ stacked, and shot at oblique angles --- but the core insight
 
 \paragraph{Game AI: RL vs.\ surrogate distillation.}
 Self-play RL agents reach superhuman play on board and video
-games~\cite{alphago,alphazero,alphastar} but require millions of
+games~\cite{alphazero} but require millions of
 episodes and produce opaque policies. We instead distil the
 published combat rules into a small MLP that predicts
 $P(\text{attacker wins})$ in one forward pass, replacing
@@ -243,7 +241,7 @@ $[0,3]/[0,10]/[0,30]$ --- to balance small skirmishes against the
 larger battles a player is more likely to encounter.
 Each sample is a 15-d unit-count vector; the label is the empirical
 attacker win rate over $B\!=\!2\,000$ simulator rollouts.
-The dataset is stored as a compressed NumPy~\cite{numpy} archive
+The dataset is stored as a compressed NumPy archive
 (\texttt{.npz}); the trained checkpoint is
 \texttt{winrate\_model.pt} ($1.4$~MB).
 
@@ -349,7 +347,7 @@ Predictions below confidence $0.7$ are discarded.
 Each crop is converted to HSV; pixels in the Japan-orange band
 ($H\!\in\![5,20]$) or USA-green band ($H\!\in\![25,45]$) are
 counted and the piece is assigned to whichever has more.
-This five-line OpenCV~\cite{opencv} step is parameter-free.
+This five-line OpenCV step is parameter-free.
 Pieces in other colours (UK, ANZAC, China) fall outside both bands
 and are dropped, so the current scope is JP vs.\ US only.
 
@@ -357,10 +355,10 @@ and are dropped, so the current scope is JP vs.\ US only.
 \label{sec:mlp}
 
 The 15-d unit-count vector is fed to an MLP with hidden widths
-$256\!\to\!256\!\to\!128\!\to\!64$ (BatchNorm~\cite{batchnorm} and
-ReLU after the first three layers), followed by a $64\!\to\!1$
-sigmoid head that estimates $P(\text{attacker wins})$. We train
-with AdamW~\cite{adamw} (lr~$=\!10^{-4}$, weight decay $0.05$,
+$256\!\to\!256\!\to\!128\!\to\!64$ (BatchNorm and ReLU after the
+first three layers), followed by a $64\!\to\!1$ sigmoid head that
+estimates $P(\text{attacker wins})$. We train with AdamW
+(lr~$=\!10^{-4}$, weight decay $0.05$,
 BCE loss) for $70\,000$ iterations on the simulator-generated
 dataset of Section~\ref{sec:data}; inputs are standardised with
 training-set statistics saved alongside the weights.
@@ -380,8 +378,8 @@ level?'').
 \subsection{Bayesian Composition Ranking (prototyped, not deployed)}
 \label{sec:blr}
 
-For calibrated ranking with explicit uncertainty in the spirit
-of~\cite{blundell2015weight}, we have additionally prototyped a
+For calibrated ranking with explicit uncertainty, we have
+additionally prototyped a
 Bayesian linear regression (BLR) head distilled from the MLP, on a
 hand-crafted 28-d feature map of counts, force ratios, and pairwise
 interactions. It is fit online from sufficient statistics, with the
@@ -408,7 +406,7 @@ Tank, casualties applied land-first-then-air
 and Mech merged into infantry for selection;
 \emph{(iii)} termination when one side has no remaining land or air
 units.
-The simulator is vectorised in NumPy~\cite{numpy} ($B\!=\!2\,000$
+The simulator is vectorised in NumPy ($B\!=\!2\,000$
 parallel battles per call, RNG seeded for reproducibility) and
 serves both \texttt{/simulate} and the MLP's training-data
 generator.
@@ -527,8 +525,7 @@ batching are noted as longer-term engineering work beyond the
 final-report timeline.}
 
 \paragraph{Attribution.}
-We use OWL-ViT~\cite{owlvit} weights, the \texttt{transformers}
-library~\cite{hftransformers}, and the unmodified
+We use OWL-ViT~\cite{owlvit} weights and the unmodified
 \texttt{vit\_small\_patch16\_224} from \texttt{timm}~\cite{timm} as
 released; everything else --- the HSV faction heuristic, the
 win-rate MLP and its training pipeline, the rules-based combat
