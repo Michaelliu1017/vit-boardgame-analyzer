@@ -277,13 +277,14 @@ the full eight-class vocabulary --- which is why the MLP input vector
 is fifteen-dimensional (seven attacker counts plus all eight defender
 counts).
 
-\begin{table}[h]
+\begin{table}[t]
 \centering\small
+\setlength{\tabcolsep}{4pt}
 \caption{Unit vocabulary modelled by the system. Attack and defence
 values are out of six (\emph{Axis \& Allies} uses d6 dice).
 \textsc{AA} is defender-only.}
 \label{tab:units}
-\begin{tabular}{llrc}
+\begin{tabular}{@{}llrc@{}}
 \toprule
 Code & Unit & IPC & Atk\,/\,Def \\
 \midrule
@@ -423,20 +424,21 @@ We built a micro-benchmark script
 time for each pipeline stage on a Windows CPU laptop
 (Table~\ref{tab:latency}).
 
-\begin{table}[h]
+\begin{table}[t]
 \centering
 \small
+\setlength{\tabcolsep}{3pt}
 \caption{Per-stage CPU latency (Windows laptop, no GPU).}
 \label{tab:latency}
-\begin{tabular}{lrl}
+\begin{tabular}{@{}lrl@{}}
 \toprule
 Stage & Latency & Notes \\
 \midrule
-OWL-ViT detection     & $\sim$5.0\,s   & Dominates \texttt{/analyze} \\
-ViT classification    & $\sim$130\,ms  & Sequential; 1.5$\times$ faster batched \\
-MLP single forward    & $\sim$0.28\,ms & Used by \texttt{/winrate} \\
-MLP batch (10\textsuperscript{4}) & $\sim$3.8\,ms & $\approx$700$\times$ MLP-only kernel speed-up \\
-\texttt{find\_best\_attack} & $\sim$2.8\,s/budget & 2 budgets per \texttt{/recommend} \\
+OWL-ViT detection      & $\sim$5.0\,s   & dominates \texttt{/analyze} \\
+ViT classification     & $\sim$130\,ms  & 1.5$\times$ faster batched \\
+MLP single forward     & $\sim$0.28\,ms & per \texttt{/winrate} call \\
+MLP batch ($10^{4}$)   & $\sim$3.8\,ms  & $\approx$700$\times$ kernel speed-up \\
+\texttt{find\_best\_attack} & $\sim$2.8\,s & per budget; $2{\times}$ per call \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -477,19 +479,20 @@ a percentage point.
 \red{A reliability diagram and per-stratum breakdown will appear in
 the final report.}
 
-\begin{table}[h]
+\begin{table}[t]
 \centering\small
+\setlength{\tabcolsep}{4pt}
 \caption{MLP win-rate prediction vs.\ Monte-Carlo simulator on
 representative battles.}
 \label{tab:mlp-rep}
-\begin{tabular}{lcc}
+\begin{tabular}{@{}lcc@{}}
 \toprule
 Scenario & Simulator & MLP \\
 \midrule
-1 inf vs 1 inf                         & 0.417 & 0.421 \\
-1 inf {+} 1 art vs 1 inf {+} 1 art     & 0.500 & 0.497 \\
-1 tank vs 1 inf                        & 0.782 & 0.779 \\
-3 inf {+} 1 art {+} 1 tank vs same     & 0.500 & 0.503 \\
+1 inf vs 1 inf                     & 0.417 & 0.421 \\
+1 inf+art vs 1 inf+art             & 0.500 & 0.497 \\
+1 tank vs 1 inf                    & 0.782 & 0.779 \\
+3 inf+art+tank vs same             & 0.500 & 0.503 \\
 \bottomrule
 \end{tabular}
 \end{table}
