@@ -66,7 +66,7 @@
 % ============================================================
 \begin{abstract}
 We present a decision-support system for the tabletop war game
-\emph{Axis \& Allies Pacific 1940} that converts a single phone photograph
+\emph{Axis \& Allies Pacific 1940} that converts a single photograph
 of a contested territory into three tactical outputs: a predicted attacker
 win probability, an optimal unit-composition recommendation, and a
 deterministic combat simulation.
@@ -107,12 +107,12 @@ of manually entering every unit count into a web calculator outweighs
 the informational benefit.
 
 Our project closes that gap. A player takes a single, uncontrolled
-phone photograph of a contested territory; our system detects the
-plastic miniatures in the image, classifies each one by unit type and
-faction colour, and immediately returns (i)~a predicted win probability
-for the named attacker, (ii)~the optimal attacker force under two
-different IPC~budgets, and (iii)~a fully simulated battle with surviving
-unit counts on each side.
+photograph of a contested territory; our system detects the plastic
+miniatures in the image, classifies each one by unit type and
+faction colour, and immediately returns (i)~a predicted win
+probability for the named attacker, (ii)~the optimal attacker force
+under two different IPC~budgets, and (iii)~a fully simulated battle
+with surviving unit counts on each side.
 
 \noindent\textbf{Contributions.}
 (i)~an end-to-end pipeline from noisy board photo to tactical
@@ -135,7 +135,7 @@ the MLP's training-data generator.
     out/.style  = {draw, fill=green!12,  minimum width=18mm},
     arr/.style  = {-{Stealth[length=2mm]}, thick}
   ]
-    \node[img]                                  (photo)  {Phone\\photo};
+    \node[img]                                  (photo)  {Board\\photo};
     \node[proc, right=4mm of photo]             (owl)    {OWL-ViT\\detection};
     \node[proc, right=4mm of owl]               (vit)    {ViT-Small\\classifier};
     \node[proc, right=4mm of vit]               (hsv)    {HSV\\faction};
@@ -151,7 +151,7 @@ the MLP's training-data generator.
     \draw[arr] (counts) -- (rec);
     \draw[arr] (counts) -- (sim);
   \end{tikzpicture}
-  \caption{System overview. A single phone photograph passes through
+  \caption{System overview. A single photograph passes through
     open-vocabulary detection, per-piece classification, and a
     colour-based faction heuristic to recover unit counts; the same
     counts feed three downstream tactical outputs --- win-rate
@@ -202,9 +202,9 @@ composition recommendation.
 Three datasets feed the system, each with different provenance.
 
 \paragraph{Real board photographs.}
-Thirteen JPG images in \texttt{app/backend/test/} were captured on
-a phone camera at actual play sessions under varying illumination
-and camera angles. These are held out from all training and used
+Thirteen JPG images in \texttt{app/backend/test/} were captured
+during actual play sessions under varying illumination and camera
+angles. These are held out from all training and used
 only for end-to-end evaluation of the perception pipeline; one
 representative example is reproduced in
 Figure~\ref{fig:method_detection} with the detection + classification
@@ -514,8 +514,8 @@ Scenario & Simulator & MLP \\
 \label{sec:conclusion}
 
 We have demonstrated a functioning end-to-end pipeline that converts
-a phone photograph of a board-game position into three forms of
-tactical decision support.
+a photograph of a board-game position into three forms of tactical
+decision support.
 The perception and serving infrastructure are complete and verified
 across macOS, Linux, and Windows.
 \red{Remaining work concentrates on (i)~quantitative evaluation of
