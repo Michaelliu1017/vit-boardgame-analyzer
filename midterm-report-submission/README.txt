@@ -8,12 +8,15 @@ FILES IN THIS FOLDER
   ieeenat_fullname.bst    natbib-compatible bibliography style
   references.bib          BibTeX bibliography
   figures/                Image assets used by main.tex
-    detection_example.jpg   OWL-ViT detection on a held-out board
-                            (Methods section, Figure 2).
-    board_example.jpg       Held-out evaluation photograph
-                            (Data section, Figure 3).
-    ui_states.png           Composite of all dynamic UI states
-                            (Experiments section, Figure 4).
+    battlefield_detection.png   End-to-end perception output
+                                (detection boxes + ViT classes +
+                                JP/US faction colours) on a held-out
+                                board photo. Methods section, Fig 2.
+    crops_classification.png    Twelve per-piece crops from the same
+                                photo, with ViT confidence and HSV
+                                pixel counts. Data section, Fig 3.
+    ui_states.png               Composite of all dynamic UI states.
+                                Experiments section, Fig 4.
   README.txt              This file.
 
 The Introduction summary figure (Figure 1) is drawn inline with TikZ

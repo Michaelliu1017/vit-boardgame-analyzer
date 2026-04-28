@@ -202,19 +202,24 @@ composition recommendation.
 Three datasets feed the system, each with different provenance.
 
 \paragraph{Real board photographs.}
-Thirteen JPG images in \texttt{app/backend/test/} were captured
-on a phone camera at actual play sessions under varying illumination
-and camera angles
-(Figure~\ref{fig:data_example}).
-These are held out from all training and used only for end-to-end
-evaluation of the perception pipeline.
+Thirteen JPG images in \texttt{app/backend/test/} were captured on
+a phone camera at actual play sessions under varying illumination
+and camera angles. These are held out from all training and used
+only for end-to-end evaluation of the perception pipeline; one
+representative example is reproduced in
+Figure~\ref{fig:method_detection} with the detection + classification
+overlay applied.
 
 \paragraph{Cropped unit instances.}
 A labelled set of cropped per-piece images was collected and used to
 fine-tune \texttt{vit\_small\_patch16\_224} end-to-end (the deployed
 \texttt{vit\_classifier.pth} loads with \texttt{pretrained=False},
 confirming that the backbone --- not just a linear head --- is
-trained).
+trained). Figure~\ref{fig:crops} shows the twelve crops produced
+from Figure~\ref{fig:method_detection} together with the ViT
+confidence (operating threshold $\!\geq\!0.7$ matches
+Section~\ref{sec:classify}) and the per-faction HSV pixel counts
+driving the faction assignment.
 \red{Per-class crop counts, collection protocol, and train/val
 split are not in the public repository and will be reported in the
 final submission.}
@@ -232,14 +237,15 @@ The dataset is stored as a compressed NumPy~\cite{numpy} archive
 
 \begin{figure}[t]
   \centering
-  \includegraphics[width=\linewidth]{figures/board_example.jpg}
-  \caption{Representative held-out evaluation photograph from
-    \texttt{app/backend/test/}. The thirteen images in this directory
-    span varying camera angles, lighting conditions, and territory
-    layouts; they are the only real-world data the perception
-    pipeline is evaluated against and are kept disjoint from any data
-    used to fine-tune the ViT classifier.}
-  \label{fig:data_example}
+  \includegraphics[width=\linewidth]{figures/crops_classification.png}
+  \caption{Per-detection ViT classification and HSV faction
+    assignment on the twelve crops extracted from
+    Figure~\ref{fig:method_detection}. Each tile shows the ViT
+    confidence and the per-faction HSV pixel counts that drive the
+    JP/US decision in Section~\ref{sec:faction}; the same crop
+    format is used for fine-tuning the classifier
+    (Section~\ref{sec:data}).}
+  \label{fig:crops}
 \end{figure}
 
 % ============================================================
@@ -389,13 +395,14 @@ generator.
 
 \begin{figure}[t]
   \centering
-  \includegraphics[width=\linewidth]{figures/detection_example.jpg}
-  \caption{OWL-ViT detection on a held-out board photograph.
-    Each green box is a high-confidence proposal kept after
-    NMS, the containment filter, and the area / aspect-ratio sanity
-    checks of Section~\ref{sec:detect}; each surviving box is
-    forwarded to the ViT classifier (Section~\ref{sec:classify}) and
-    the HSV faction step (Section~\ref{sec:faction}).}
+  \includegraphics[width=\linewidth]{figures/battlefield_detection.png}
+  \caption{End-to-end perception output on a held-out board
+    photograph. Each box is a high-confidence OWL-ViT detection
+    (Section~\ref{sec:detect}) annotated with the ViT-predicted
+    unit class (Section~\ref{sec:classify}) and faction
+    (Section~\ref{sec:faction}; JP in orange, US in green); the
+    numbering reflects the order in which detections survive NMS
+    and the containment filter.}
   \label{fig:method_detection}
 \end{figure}
 
