@@ -331,6 +331,9 @@ filter that removes boxes fully enclosed by a higher-scoring
 neighbour, and (c)~area and aspect-ratio sanity checks
 ($0.001 \leq A_{\text{box}}/A_{\text{img}} \leq 0.4$,
 $\text{AR} \leq 10$).
+Figure~\ref{fig:method_detect} contrasts the raw OWL-ViT output
+with the post-filtered class-agnostic boxes that we forward to
+the classifier.
 
 \begin{figure}[t]
   \centering
@@ -430,6 +433,11 @@ generator.
 % ============================================================
 \section{Experiments}
 \label{sec:experiments}
+
+We report inference profiling, planned per-component evaluations,
+and a calibration check of the MLP surrogate; a representative
+end-to-end output from the deployed system is shown in
+Figure~\ref{fig:experiments}.
 
 \subsection{Inference Profiling (complete)}
 \label{sec:profiling}
