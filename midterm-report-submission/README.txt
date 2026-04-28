@@ -3,34 +3,31 @@ Pacific 1940 Battle Analyzer — Midterm Report
 
 FILES IN THIS FOLDER
 --------------------
-  main.tex        Main LaTeX source (CVPR format, 4-page midterm)
-  references.bib  BibTeX bibliography
-  figures/        Drop figure files here (PDF or PNG recommended)
-  README.txt      This file
+  main.tex                Main LaTeX source (CVPR format, 4-page midterm)
+  cvpr.sty                CVPR 2026 author-kit style (eso-pic inlined)
+  ieeenat_fullname.bst    natbib-compatible bibliography style
+  references.bib          BibTeX bibliography
+  figures/                Drop figure files here (PDF or PNG recommended)
+  README.txt              This file
 
 HOW TO COMPILE
 --------------
-Step 1 — Get the CVPR style file
-  Download the CVPR 2024 author kit from:
-    https://github.com/cvpr-org/author-kit
-  Copy these files into this folder (same directory as main.tex):
-    cvpr.sty
-    eso-pic.sty   (if present in the kit)
+All required files (cvpr.sty, ieeenat_fullname.bst) are already in
+this folder.  Just run the four commands below.
 
-  Without cvpr.sty the document will still compile as a plain
-  two-column article — comment out the \usepackage{cvpr} line in
-  main.tex to do so.
+  pdflatex main.tex
+  bibtex   main
+  pdflatex main.tex
+  pdflatex main.tex
 
-Step 2 — Compile
-  Run the following four commands in order:
-    pdflatex main.tex
-    bibtex   main
-    pdflatex main.tex
-    pdflatex main.tex
+On Windows you can use MiKTeX (https://miktex.org/) or TeX Live.
+Overleaf (https://overleaf.com) also works — upload the whole folder
+and set compiler to pdfLaTeX.
 
-  On Windows you can use MiKTeX (https://miktex.org/) or TeX Live.
-  Overleaf (https://overleaf.com) also works — upload all files
-  including cvpr.sty, set compiler to pdfLaTeX.
+If MiKTeX prompts for a missing package on first run, the only
+likely candidate is `silence` (used internally by cvpr.sty to suppress
+cosmetic font warnings).  It is not strictly required — the document
+will still compile without it, just with a noisier log.
 
 WHAT NEEDS FILLING IN BEFORE SUBMISSION
 ----------------------------------------

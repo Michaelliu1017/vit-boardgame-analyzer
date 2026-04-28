@@ -4,13 +4,16 @@
 %
 %  HOW TO COMPILE
 %  --------------
-%  1. Download the CVPR 2024 author kit:
-%       https://github.com/cvpr-org/author-kit
-%     Copy cvpr.sty (and eso-pic.sty if present) into this folder.
-%  2. pdflatex main.tex
-%     bibtex   main
-%     pdflatex main.tex
-%     pdflatex main.tex
+%  Required files in this folder:
+%    cvpr.sty               (CVPR 2026 author kit; eso-pic is inlined)
+%    ieeenat_fullname.bst   (CVPR 2026 author kit)
+%    references.bib
+%
+%  Build sequence:
+%    pdflatex main.tex
+%    bibtex   main
+%    pdflatex main.tex
+%    pdflatex main.tex
 %
 %  CONVENTIONS IN THIS FILE
 %  ------------------------
@@ -101,7 +104,7 @@ different IPC~budgets, and (iii)~a fully simulated battle with surviving
 unit counts on each side.
 
 \noindent\textbf{Contributions.}
-\begin{itemize}\setlength\itemsep{0pt}
+\begin{itemize}
   \item An end-to-end pipeline from noisy board photo to tactical
         recommendation, running live on CPU hardware.
   \item An open-vocabulary detection front-end that requires no
@@ -140,8 +143,10 @@ We use the public \texttt{google/owlvit-large-patch14} checkpoint with
 seven natural-language prompts (\emph{``plastic military figurine toy''},
 \emph{``plastic tank toy''}, etc.).
 Related open-vocabulary detectors include Grounding
-DINO~\cite{groundingdino} and OWLv2~\cite{owlv2}; we chose
-OWL-ViT for its straightforward HuggingFace integration and reliable
+DINO~\cite{groundingdino}, OWLv2~\cite{owlv2}, and the
+closed-vocabulary transformer baseline DETR~\cite{detr}.
+We chose OWL-ViT for its straightforward integration with the
+HuggingFace Transformers library~\cite{hftransformers} and reliable
 behaviour on small, overlapping figurines without fine-tuning.
 
 \paragraph{Vision Transformers for classification.}
@@ -250,7 +255,7 @@ and the USA-green band
 ($H\!\in\![25,45]$, $S\!\in\![40,255]$, $V\!\in\![40,255]$)
 are counted; the piece is assigned to the faction with the
 larger count.
-This five-line OpenCV step needs no learnable parameters.
+This five-line OpenCV~\cite{opencv} step needs no learnable parameters.
 
 \subsection{Win-Rate Prediction (MLP surrogate)}
 \label{sec:mlp}
