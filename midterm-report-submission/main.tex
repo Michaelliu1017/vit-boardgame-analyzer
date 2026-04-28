@@ -241,7 +241,31 @@ linear-regression layer for uncertainty-aware ranking
 (Section~\ref{sec:blr}) is \red{deferred to the final submission}.
 
 The system is a sequential pipeline of five stages
-(Figure~\ref{fig:method_placeholder}).
+(Figure~\ref{fig:method_placeholder}) operating on the eight-class
+unit vocabulary in Table~\ref{tab:units}, which encodes the official
+cost and dice statistics from the rulebook.
+
+\begin{table}[h]
+\centering\small
+\caption{Unit vocabulary modelled by the system. Attack and defence
+values are out of six (\emph{Axis \& Allies} uses d6 dice).
+\textsc{AA} is defender-only.}
+\label{tab:units}
+\begin{tabular}{llrc}
+\toprule
+Code & Unit & IPC & Atk\,/\,Def \\
+\midrule
+\texttt{Infantry}  & Infantry             &  3 & 1\,/\,2 \\
+\texttt{Mech}      & Mechanised infantry  &  4 & 1\,/\,2 \\
+\texttt{Artillery} & Artillery            &  4 & 2\,/\,2 \\
+\texttt{Tank}      & Tank                 &  6 & 3\,/\,3 \\
+\texttt{Fighter}   & Fighter aircraft     & 10 & 3\,/\,4 \\
+\texttt{TacBmb}    & Tactical bomber      & 11 & 3\,/\,3 \\
+\texttt{StrBmb}    & Strategic bomber     & 12 & 4\,/\,1 \\
+\texttt{AA}        & Anti-aircraft gun    &  5 & ---\,/\,1 \\
+\bottomrule
+\end{tabular}
+\end{table}
 
 \subsection{Detection (open-vocabulary)}
 \label{sec:detect}
@@ -275,7 +299,12 @@ and the USA-green band
 ($H\!\in\![25,45]$, $S\!\in\![40,255]$, $V\!\in\![40,255]$)
 are counted; the piece is assigned to the faction with the
 larger count.
-This five-line OpenCV~\cite{opencv} step needs no learnable parameters.
+This five-line OpenCV~\cite{opencv} step needs no learnable
+parameters.
+Pieces in any other colour (UK, ANZAC, and China use distinct paint
+schemes in the full game) fall outside both HSV bands and are
+silently dropped, so the current system scope is Japan vs.\ United
+States combat only.
 
 \subsection{Win-Rate Prediction (MLP surrogate)}
 \label{sec:mlp}
@@ -294,8 +323,12 @@ attacker mix with total IPC cost $\leq B$.
 With unit costs in $\{3, 4, 4, 6, 10, 11, 12\}$ IPC and budgets
 in the low double digits, the candidate set is $O(10^4)$ per budget.
 Each candidate is scored by the MLP; the top-scoring mix is returned.
-The recommender runs twice per request: once at the attacker's current
-IPC, once at the defender's IPC.
+The recommender runs twice per request, at two semantically distinct
+budgets: once at the \emph{attacker's} own IPC value (answering
+\emph{``what should I have brought to this fight for the same money?''})
+and once at the \emph{defender's} IPC value
+(\emph{``if I matched their investment, what is optimal against this
+stack?''}).
 
 \subsection{\red{Bayesian Composition Ranking (planned)}}
 \label{sec:blr}
@@ -321,13 +354,27 @@ prioritised for the final report.}
 \label{sec:sim}
 
 A deterministic simulator implements the official single-territory
-combat sequence: AA pre-fire, artillery support on paired infantry,
-tactical-bomber pairing bonus, repeated rounds until one side is
-eliminated.
+combat sequence in three phases.
+\emph{(i)~AA fire} occurs once at the start: each defending AA gun
+rolls up to three shots (capped at the number of attacking aircraft)
+at $1/6$ to hit, with casualties drawn from fighters, then tactical
+bombers, then strategic bombers.
+\emph{(ii)~Combat rounds} repeat until one side is wiped: both sides
+roll simultaneously at the attack/defence values in
+Table~\ref{tab:units}; artillery upgrades paired infantry from $1$
+to $2$, and a tactical bomber gains $+1$ when accompanied by a
+fighter or tank.
+Casualties are applied land-first then air in the order
+infantry $\to$ artillery $\to$ tank $\to$ fighter $\to$ tac bomber
+$\to$ strategic bomber, with mechanised infantry merged into the
+infantry pool for casualty selection and split back out for the
+survivor report.
+\emph{(iii)~Termination} occurs when one side has no remaining land
+or air units.
 The RNG is seeded (\texttt{numpy.random.default\_rng(42)}) for
 reproducibility.
-The simulator serves both the \texttt{/simulate} endpoint and
-the win-rate MLP training.
+The simulator serves both the \texttt{/simulate} endpoint and the
+training-data generator for the win-rate MLP.
 
 % Placeholder until the real pipeline figure is ready
 \begin{figure}[t]
